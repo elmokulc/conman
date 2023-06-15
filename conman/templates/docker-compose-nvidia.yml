@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  main_container:
+    build:
+      dockerfile: $PATH_DOCKERFILE
+      args:
+        - BASE_IMAGE=$BASE_IMAGE
+        - USER_NAME=$USER_NAME
+        - USER_UID=$UID
+        - USER_GID=$GID
+        - CONDA_ENV_NAME=$CONDA_ENV_NAME
+        - DISPLAY=$DISPLAY
+      context: .
+    container_name: $CONTAINER_NAME
+    stdin_open: false
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: $GPU_COUNT
+              capabilities: [gpu]
