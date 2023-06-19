@@ -1,0 +1,24 @@
+# This is the default configuration file for conman.
+
+image:
+    name: "your_image_name"
+    tag: "your_image_tag"
+
+volumes:
+    python_packages: 
+        - "/bite"
+    data: []
+    hardware: []
+
+conda:
+    prefix: "/conda"
+    env_name: "base"
+
+graphical:
+    enabled: false
+    protocol: "x11"
+    
+gpu:
+    enabled: false
+    manufacturer: "nvidia"
+    gpu_count: 0

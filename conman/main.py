@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import logging
 import os
@@ -7,22 +9,19 @@ from typing import Optional
 from typing import Sequence
 from typing import Union
 import conman.constants as C
-from conman.commands import Commands
+
+from conman.commands.init import init
+from conman.commands.clean import clean
+from conman.commands.status import status
+from conman.commands.install import install
 
 
-# # Define the init() function
-# def init():
-#     print("Fonction init() exécutée")
+CMDS = {"init": init, 
+        "clean": clean,
+        "status": status,
+        "install": install,
+        }
 
-# # Define the clean() function
-# def clean():
-#     print("Fonction clean() exécutée")
-
-# CMDS = {"init": init, 
-#         "clean": clean}
-
-commands = Commands()
-    
 def main(argv: Optional[Sequence[str]] = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(prog='conman',
@@ -60,6 +59,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ## Init command
     init_impl_parser = subparsers.add_parser('init', 
                                              help='Initialize a new project')
+    
+    ## Install command
+    install_impl_parser = subparsers.add_parser('install', 
+                                             help='Install a project')
    
     ## Clean command
     clean_impl_parser = subparsers.add_parser('clean',
@@ -73,15 +76,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ## Working directory
     if args.file:
         if os.path.exists(os.path.dirname(args.file)):
-            commands.wdir = os.path.dirname(args.file)
-            print(f"Working directory was updated to: {commands.wdir}")
+            pass
         else: 
             print(f"Specified directory: {os.path.dirname(args.file)} do not exist.")
     if args.verbose:
-        commands.status()
+        status()
     
     # Run the command
-    for key , value in commands.__CMDS_dict__.items():
+    for key , value in CMDS.items():
         if args.command == key:
             value()
 
