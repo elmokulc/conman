@@ -2,17 +2,51 @@ from __future__ import annotations
 
 import os 
 from conman import utils
-from conman.utils import Construct
 from conman.constants import *
-from conman.config.image import Image
 
-
-class Config(Construct):   
+class Container:
+    @classmethod
+    def from_dic(cls, dic):
+        kwargs = {}
+        flag = False
+        for key, value in dic.items():
+            if key in CONFIG:
+                _class = CONFIG[key]
+            else:
+                flag =True
+                _class = Container
             
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)  
+            if value.__class__ == dict:
+                kwargs[key] = _class.from_dic(value)
+            else :
+                kwargs[key] = value
+
+                
+        return cls(**kwargs)
+    
+    def __init__(self, **kwargs) -> None:
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+            
+from conman.config.image import Image
+CONFIG = {"image":Image}
+
+
+class Config(Container):   
+            
+    def __init__(self, image, volumes, conda, graphical, gpu):
+        self.image = image
+        self.volumes = volumes
+        self.conda  = conda
+        self.graphical = graphical
+        self.gpu = gpu
         self.build_extra_attr()
         self.check_config_file()
+
+    @classmethod
+    def load_from_yml(cls, yml_filename: str) -> Config:
+        dic= utils.load_yml_file(yml_filename=yml_filename)
+        return cls.from_dic(dic)
     
     
     def build_extra_attr(self):
@@ -24,33 +58,18 @@ class Config(Construct):
         def _check_image():
             if self.base_name == 'your_image_name:your_image_tag':
                 print("Error: base_name is not valid")
+                print(f"\t=> Current name is <{self.base_name}>")
                 self.__error_status__ = True
             
         def _check_volumes():
             # Check volumes
-            if not self.volumes.python_packages: 
-                print("Warning: no python_packages added to volumes")
+            if not self.volumes: 
+                print("Warning: no volumes specified")
             else:
-                # Print the list of python_packages 
-                print("python_packages:")
-                for package in self.volumes.python_packages:
-                    print(f" - {package}")
-
-            if not self.volumes.data:
-                print("Warning: no data added to volumes")
-            else:
-                # Print the list of data
-                print("data:")
-                for data in self.volumes.data:
-                    print(f" - {data}")
-                    
-            if not self.volumes.hardware:
-                print("Warning: no hardware added to volumes")
-            else:
-                # Print the list of hardware
-                print("hardware:")
-                for hardware in self.volumes.hardware:
-                    print(f" - {hardware}")
+                # Print volumes
+                print("volumes:")
+                for volume in self.volumes:
+                    print(f" - {volume}")
     
         def _check_conda():
             print(f'conda prefix = {self.conda.prefix}')
@@ -63,7 +82,7 @@ class Config(Construct):
         # Check conda
         _check_conda()
         
-            
+        
 
 
 def install(debug=False):
@@ -75,7 +94,7 @@ def install(debug=False):
         config_filename = utils.get_template_file_path(config_filename)
           
         
-    config = Config(**utils.load_yml_file(yml_filename=config_filename))
+    config = Config.load_from_yml(yml_filename=config_filename)
     
     
     return config

@@ -49,14 +49,4 @@ def convert_to_object(data):
     else:
         return data
     
-class Construct:
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            try: 
-                arg_class = globals()[key.capitalize()]
-            except:
-                arg_class = Construct
-            if value.__class__ == dict:
-                setattr(self, key, arg_class(**value))
-            else:
-                setattr(self, key, value)
+    

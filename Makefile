@@ -2,6 +2,10 @@ install:
 	python setup.py install ; \
 	$(MAKE) clean
 
+dev-install:
+	pip install --editable . ; \
+	$(MAKE) clean
+
 clean:
 	rm -rf build conman.egg-info dist
 

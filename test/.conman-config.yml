@@ -6,7 +6,10 @@ image:
 
 volumes:
     python_packages: 
-        - "/bite"
+        - path : "/bite"
+          f: 0
+        - path : "/bite"
+          f: 1
     data: []
     hardware: []
 
