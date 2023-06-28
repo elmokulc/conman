@@ -21,6 +21,11 @@ def get_template_file_path(template_filename: str) -> str:
     template_path = os.path.join(module_path, "templates", check_is_templatefile(template_filename))
     
     return template_path
+
+def get_tests_dir() -> str:
+    module_path = os.path.dirname(__file__)
+    module_root_path = "/".join(module_path.split("/")[:-1])
+    return os.path.join(module_root_path, "tests") + "/"
     
 
 def cp_template_file(template_filename: str) -> None:
@@ -34,9 +39,8 @@ def cp_template_file(template_filename: str) -> None:
 def load_yml_file(yml_filename: str) -> dict:
     with open(yml_filename, "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-    
-    # config = convert_to_object(config)
     return config
+
 
 def convert_to_object(data):
     if isinstance(data, dict):

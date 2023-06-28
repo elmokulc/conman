@@ -54,12 +54,14 @@ class Config(Container):
         self.base_name = f"{self.image.name}:{self.image.tag}"
     
     def check_config_file(self):
-        
+        print("Checking config file ...")
         def _check_image():
             if self.base_name == 'your_image_name:your_image_tag':
                 print("Error: base_name is not valid")
                 print(f"\t=> Current name is <{self.base_name}>")
                 self.__error_status__ = True
+            else :
+                print(f"base_name = {self.base_name}")
             
         def _check_volumes():
             # Check volumes
@@ -82,16 +84,15 @@ class Config(Container):
         # Check conda
         _check_conda()
         
-        
+    def run_config(self):
+        return None 
 
 
-def install(debug=False):
-    print("install() function executed !")
-    
+def install(debug=False):  
 
     config_filename = CONFIG_FILE
     if debug:
-        config_filename = utils.get_template_file_path(config_filename)
+         config_filename = utils.get_tests_dir() + config_filename
           
         
     config = Config.load_from_yml(yml_filename=config_filename)
