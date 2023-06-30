@@ -5,6 +5,7 @@ from string import Template
 import json
 import shutil
 import platform
+import yaml
 
 from conman import utils
 from conman.constants import *
@@ -173,11 +174,27 @@ def install_docker_compose(config):
         template_filename = "empty_template_docker-compose-nvidia.yml"
         
     if config.graphical.enabled and config.graphical.protocol == "x11":
-        pass
+        # Need to mount volumes for x11 forwarding
+        config.volumes += [
+            "/tmp/.X11-unix:/tmp/.X11-unix:rw",
+            f"/home/{data_user_id['USER_NAME']}/.Xauthority:root/.Xauthority:rw",
+            f"/home/{data_user_id['USER_NAME']}/.Xauthority:/home/{data_user_id['USER_NAME']}/.Xauthority:rw",
+        ]
+        extra_opt_dict = {"privileged":True, "network_mode":"host"}
         
-    
     dct = replace_data_in_template(template_filename, data)
+    
+    # Append volumes to docker-compose.yml
+    
+    data_dict  = yaml.safe_load(dct)
+    data_dict["services"][f"{config.container.main_service_name}"]["volumes"] = config.volumes
+    if extra_opt_dict:
+        data_dict["services"][f"{config.container.main_service_name}"].update(extra_opt_dict)
+    
+    dct = yaml.dump(data_dict)
+    
     open(wdir+"docker-compose.yml", "w").write(dct)
+    return data_dict
     
 def install(debug=False):  
 
