@@ -29,6 +29,7 @@ def get_tests_dir() -> str:
     
 
 def cp_template_file(template_filename: str) -> None:
+    """Copy template file to current directory"""
     
     wdir = os.getcwd() + "/"
     template_path = get_template_file_path(template_filename)

@@ -1,15 +1,21 @@
 import conman as cn 
 import os 
 
-def test_init():
-    cn.commands.init.init()
-    # check is file .conman-config.yml exists in current directory
-    assert os.path.isfile(".conman-config.yml")
+
+class TestInit:
+    def test_init_file_creation(self):
+        cn.commands.init.init()
+        # check is file .conman-config.yml exists in current directory
+        assert os.path.isfile(".conman-config.yml")
+
+    def test_init_file_validity(self):
+        assert not cn.commands.install.install().check_config_file()
+
+
+class TestInstall:
+    pass
     
-def test install():
-    cn.commands.install.install()
-    # check if container is running
-    assert cn.commands.status.status() == 'running'
     
 if __name__ == "__main__":
-    test_init()
+    config = cn.commands.install.install()
+    out = cn.commands.install.install_docker_compose(config)

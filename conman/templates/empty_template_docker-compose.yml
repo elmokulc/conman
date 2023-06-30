@@ -1,8 +1,8 @@
 version: "3.9"
 services:
-  main_container:
+  $MAIN_SERVICE_NAME:
     build:
-      dockerfile: $PATH_DOCKERFILE
+      dockerfile: ./Dockerfile
       args:
         - BASE_IMAGE=$BASE_IMAGE
         - USER_NAME=$USER_NAME

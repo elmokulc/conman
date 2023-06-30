@@ -6,7 +6,7 @@
 	"image": "mcr.microsoft.com/devcontainers/base:focal",
 	"features": {
 		"ghcr.io/rocker-org/devcontainer-features/miniforge:1": {}
-	}
+	},
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
@@ -15,7 +15,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "uname -a",
+	"postCreateCommand": "cd .devcontainer && /bin/bash postCommand.sh"
 
 	// Configure tool-specific properties.
 	// "customizations": {},

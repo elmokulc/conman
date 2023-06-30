@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  main_container:
+    build:
+      dockerfile: ./Dockerfile
+      args:
+        - BASE_IMAGE=Ubuntu:20.04
+        - USER_NAME=vscode
+        - USER_UID=1000
+        - USER_GID=1000
+        - CONDA_ENV_NAME=base
+        - DISPLAY=:0
+      context: .
+    container_name: testing_container
+    stdin_open: false

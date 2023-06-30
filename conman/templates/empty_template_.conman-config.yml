@@ -18,4 +18,13 @@ graphical:
 gpu:
     enabled: false
     manufacturer: "nvidia"
-    gpu_count: 0
+    count: 0
+
+container:
+    main_service_name: "main_container"
+    name: "your_container_name"
+    devcontainer:
+        enabled: true
+        name: "your_devcontainer_name"
+
+    
