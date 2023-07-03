@@ -2,10 +2,6 @@ import yaml
 import platform 
 import os 
 
-def add_entry(data: dict, entry: str, value):
-        data[entry] = value
-        return data[entry]
-
 def get_user_id_data():
     # check os platform is linux or windows
     if platform.system() == "Linux":
@@ -29,62 +25,63 @@ def get_display():
     else: 
         return "host.docker.internal:0"
 
-class DockerCompose:
-    def __init__(self):
-        self.services = {}
+def activate_super_init(subclass):
+    original_init = subclass.__init__
 
+    def new_init(self, *args, **kwargs):
+        super(subclass, self).__init__(*args, **kwargs)
+        original_init(self, *args, **kwargs)
+
+    subclass.__init__ = new_init
+    return subclass
+
+class Field:
+    def __init__(self):
+        self.register_repr()
+        
+    def __repr__(self) -> str:
+        return self.__dict__.__repr__()
+            
+    def add_field(self, field, value):
+        self.__dict__[field] = value
+
+    @staticmethod
+    def field_representer(dumper, data):
+        return dumper.represent_dict(data.__dict__)
     
+    def register_repr(self):
+        yaml.add_representer(self.__class__, Field.field_representer)
+    
+        
+@activate_super_init
+class DockerCompose(Field):
+    def __init__(self):
+        self.services = Field()
+
     def add_service(self, service_name):
-        return add_entry(
-            data=self.services,
-            entry=service_name, 
-            value=ServiceData(service_name))
+        service = Service()
+        self.services.add_field(service_name, service)
         
     def to_yaml(self, version="3.9"):
-        data = {"version": f"{version}", "services": {name: service.to_dict() for name, service in self.services.items()}}
-        return yaml.dump(data)
+        data = {"version": version}
+        data.update(self.__dict__)
+        return yaml.dump(data, default_flow_style=False)
 
     def export(self, file_path):
         with open(file_path, "w") as f:
             f.write(self.to_yaml())
 
-class ServiceData:
-    def __init__(self, service_name):
-        self.service_name = service_name
-        self.data = {}
+@activate_super_init
+class Service(Field): pass
 
-    def add_field(self, field, value):
-        self.data[field] = value
-        
-    # def add_args(self, arg, value):
-    #     self.data["build"]["args"].append(f"{arg}={value}")
-        
-    # def set_build(self, context: str = ".",
-    #                     dockerfile: str = "./Dockerfile",
-    #                     args: list(str) = None,
-    #                     image: str = None,
-    #                     ):
 
-    #     build = {}
-    #     if dockerfile is not None:
-    #         build["dockerfile"] = dockerfile
-    #     if args is not None:
-    #         build["args"] = args
-
-    #     return build
-        
-    # def add_build(self, build):
-    #     self.data["build"] = build
-
-    def to_dict(self):
-        return self.data
 
 # Create DockerCompose instance
 docker_compose = DockerCompose()
 
 # Add main_container service
-main_container_service = docker_compose.add_service("main_container")
-main_container_service.add_field("build", {
+docker_compose.add_service("main_container")
+docker_compose.services.main_container.add_field("build", {
     "dockerfile": "./Dockerfile",
     "args": [
         "BASE_IMAGE=$BASE_IMAGE",
@@ -96,9 +93,9 @@ main_container_service.add_field("build", {
     ],
     "context": "."
 })
-main_container_service.add_field("container_name", "$CONTAINER_NAME")
-main_container_service.add_field("stdin_open", False)
-main_container_service.add_field("deploy", {
+docker_compose.services.main_container.add_field("container_name", "$CONTAINER_NAME")
+docker_compose.services.main_container.add_field("stdin_open", False)
+docker_compose.services.main_container.add_field("deploy", {
     "resources": {
         "reservations": {
             "devices": [
