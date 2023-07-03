@@ -152,7 +152,7 @@ def get_display():
 def install_docker_compose(config):
     template_filename = "empty_template_docker-compose.yml"
     wdir = os.getcwd() + "/"
-    
+    cnt_extra_opt = {}
     data = {
         "MAIN_SERVICE_NAME":config.container.main_service_name,
         "CONTAINER_NAME":config.container.name,
@@ -163,7 +163,6 @@ def install_docker_compose(config):
     
     data_user_id = get_user_id_data()
     data.update(data_user_id)
-    
     
     if config.container.devcontainer.enabled:
         install_devcontainer(config)
@@ -180,16 +179,18 @@ def install_docker_compose(config):
             f"/home/{data_user_id['USER_NAME']}/.Xauthority:root/.Xauthority:rw",
             f"/home/{data_user_id['USER_NAME']}/.Xauthority:/home/{data_user_id['USER_NAME']}/.Xauthority:rw",
         ]
-        extra_opt_dict = {"privileged":True, "network_mode":"host"}
+        cnt_extra_opt = {"privileged":True, "network_mode":"host"}
         
     dct = replace_data_in_template(template_filename, data)
     
-    # Append volumes to docker-compose.yml
-    
+    # docker-compose file representation as dictionnary
     data_dict  = yaml.safe_load(dct)
+    
+    # Append volumes to docker-compose.yml
     data_dict["services"][f"{config.container.main_service_name}"]["volumes"] = config.volumes
-    if extra_opt_dict:
-        data_dict["services"][f"{config.container.main_service_name}"].update(extra_opt_dict)
+    
+    # Add extra options to container service
+    data_dict["services"][f"{config.container.main_service_name}"].update(cnt_extra_opt)
     
     dct = yaml.dump(data_dict)
     

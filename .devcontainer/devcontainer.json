@@ -15,7 +15,18 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "cd .devcontainer && /bin/bash postCommand.sh"
+	"postCreateCommand": "cd .devcontainer && /bin/bash postCommand.sh",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-azuretools.vscode-docker",
+				"ms-python.python",
+				"njpwerner.autodocstring",
+				"KevinRose.vsc-python-indent",
+				"GitHub.copilot"
+			]
+		}
+	}
 
 	// Configure tool-specific properties.
 	// "customizations": {},

@@ -5,11 +5,12 @@ image:
     tag: "20.04"
 
 volumes:
-    []
+    - test:test
+    - test2:test2
 
 conda:
-    prefix: "/conda"
-    env_name: "base"
+    prefix: "/opt/conda"
+    env_name: "jellyfish"
 
 graphical:
     enabled: false
