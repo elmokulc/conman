@@ -25,7 +25,15 @@ def get_display():
     else: 
         return "host.docker.internal:0"
 
-def activate_super_init(subclass):
+def asi(subclass):
+    """
+    asi = activate superclass __init__
+    Args:
+        subclass (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     original_init = subclass.__init__
 
     def new_init(self, *args, **kwargs):
@@ -36,7 +44,7 @@ def activate_super_init(subclass):
     return subclass
 
 class Field:
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.register_repr()
         
     def __repr__(self) -> str:
@@ -53,13 +61,13 @@ class Field:
         yaml.add_representer(self.__class__, Field.field_representer)
     
         
-@activate_super_init
+@asi
 class DockerCompose(Field):
     def __init__(self):
         self.services = Field()
 
-    def add_service(self, service_name):
-        service = Service()
+    def add_service(self, service_name, **kwargs):
+        service = Service(**kwargs)
         self.services.add_field(service_name, service)
         
     def to_yaml(self, version="3.9"):
@@ -67,47 +75,63 @@ class DockerCompose(Field):
         data.update(self.__dict__)
         return yaml.dump(data, default_flow_style=False)
 
-    def export(self, file_path):
+    def export(self, file_path="docker-compose.yml"):
         with open(file_path, "w") as f:
             f.write(self.to_yaml())
 
-@activate_super_init
-class Service(Field): pass
+@asi
+class Service(Field): 
+    def __init__(self, container_name="", **kwargs):
+        self.build = Build()
+        self.container_name = container_name
 
+    def activate_gpu_deploy(self):
+            self.deploy = Deploy()
+@asi
+class Build(Field):
+    def __init__(self, dockerfile="./Dockerfile", args=[], context=".", **kwargs):
+        
+        self.args = args
+        self.context = context
+        self.dockerfile = dockerfile
+        
+        self.get_user_specific_args()
+        self.get_display()
 
+    def get_user_specific_args(self):
+        user_id_data = get_user_id_data()
+        for key, value in user_id_data.items():
+            self.args.append(f"{key}={value}")
+        return self.args
 
+    def get_display(self):
+        display = get_display()
+        self.args.append(f"DISPLAY={display}")
+        return self.args
+        
+    def add_arg(self, arg_name, arg_value):
+        self.args.append(f"{arg_name}={arg_value}")
+        
+        
+@asi 
+class Deploy(Field):
+    
+    def __init__(self, resources={}, **kwargs):
+        self.resources = resources
+        self.set_devices()
+    
+    def set_devices(self, driver="nvidia", count=0, capabilities=["gpu"]):
+        self.resources = {"reservations": {"devices": [{"driver": driver, "count": count, "capabilities": capabilities}]}}
+        
+        
 # Create DockerCompose instance
 docker_compose = DockerCompose()
 
 # Add main_container service
-docker_compose.add_service("main_container")
-docker_compose.services.main_container.add_field("build", {
-    "dockerfile": "./Dockerfile",
-    "args": [
-        "BASE_IMAGE=$BASE_IMAGE",
-        "USER_NAME=$USER_NAME",
-        "USER_UID=$UID",
-        "USER_GID=$GID",
-        "CONDA_ENV_NAME=$CONDA_ENV_NAME",
-        "DISPLAY=$DISPLAY"
-    ],
-    "context": "."
-})
-docker_compose.services.main_container.add_field("container_name", "$CONTAINER_NAME")
-docker_compose.services.main_container.add_field("stdin_open", False)
-docker_compose.services.main_container.add_field("deploy", {
-    "resources": {
-        "reservations": {
-            "devices": [
-                {
-                    "driver": "nvidia",
-                    "count": "$GPU_COUNT",
-                    "capabilities": ["gpu"]
-                }
-            ]
-        }
-    }
-})
+docker_compose.add_service("main_service", container_name="my_custom_container")
+
+# If you want to add a deploy field for gpu access
+docker_compose.services.main_service.activate_gpu_deploy()
 
 # Export to docker-compose.yml
-docker_compose.export("docker-compose.yml")
+docker_compose.export()
