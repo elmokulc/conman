@@ -9,6 +9,8 @@ import yaml
 
 from conman import utils
 from conman.constants import *
+import conman.ressources as rsrc
+
 
 class Container:
     @classmethod
@@ -123,80 +125,43 @@ def install_devcontainer(config):
     template_filename = "empty_template_devcontainer.json"
     dct = replace_data_in_template(template_filename, data)
     open(".devcontainer/devcontainer.json", "w").write(dct)
-    
-def get_user_id_data():
-    # check os platform is linux or windows
-    if platform.system() == "Linux":
-        import pwd
-        return {
-            "USER_NAME": os.environ.get("USER"),
-            "UID": str(pwd.getpwnam(os.environ.get("USER")).pw_uid),
-            "GID": str(pwd.getpwnam(os.environ.get("USER")).pw_gid),
-        }
-        
-    elif platform.system() == "Windows":
-        return {
-            "USER_NAME": os.environ.get("USER"),
-            "UID": "1000",
-            "GID": "1000",
-        }
-    
-def get_display():   
-    if platform.system() == "Linux": 
-        return str(os.environ.get("DISPLAY"))
-    else: 
-        return "host.docker.internal:0"
-       
-        
+           
 
 def install_docker_compose(config):
-    template_filename = "empty_template_docker-compose.yml"
-    wdir = os.getcwd() + "/"
-    cnt_extra_opt = {}
-    data = {
-        "MAIN_SERVICE_NAME":config.container.main_service_name,
-        "CONTAINER_NAME":config.container.name,
-        "BASE_IMAGE":config.base_name,
-        "CONDA_ENV_NAME":config.conda.env_name,
-        "DISPLAY":get_display(),
-    }
+    docker_compose = rsrc.docker_compose.DockerCompose()
+    docker_compose.add_service(f"{config.container.main_service_name}",
+                               container_name=f"{config.container.name}")
     
-    data_user_id = get_user_id_data()
-    data.update(data_user_id)
+    current_service = getattr(docker_compose.services, f"{config.container.main_service_name}")
     
-    if config.container.devcontainer.enabled:
-        install_devcontainer(config)
-        wdir = os.getcwd() + "/.devcontainer/"
-        
     if config.gpu.enabled and config.gpu.manufacturer == "nvidia":
-        data.update({"GPU_COUNT":config.gpu.count})
-        template_filename = "empty_template_docker-compose-nvidia.yml"
+        current_service.deploy.activate_gpu(
+            driver=f"{config.gpu.manufacturer}",
+            count=f"{config.gpu.count}")
         
     if config.graphical.enabled and config.graphical.protocol == "x11":
-        # Need to mount volumes for x11 forwarding
-        config.volumes += [
-            "/tmp/.X11-unix:/tmp/.X11-unix:rw",
-            f"/home/{data_user_id['USER_NAME']}/.Xauthority:root/.Xauthority:rw",
-            f"/home/{data_user_id['USER_NAME']}/.Xauthority:/home/{data_user_id['USER_NAME']}/.Xauthority:rw",
-        ]
-        cnt_extra_opt = {"privileged":True, "network_mode":"host"}
+        current_service.activate_display()
+    
+    # Add Base image 
+    current_service.build.add_arg(arg_name = "BASE_IMAGE", arg_value=config.base_name)
+    
+    # Add conda configuration
+    current_service.build.add_arg(arg_name = "CONDA_ENV_NAME", arg_value=config.conda.env_name)
+    current_service.build.add_arg(arg_name = "CONDA_PREFIX", arg_value=config.conda.prefix)
+    
+    # Appends volumes 
+    current_service.volumes += config.volumes
+    
+    # Dump docker-compose.yml
+    wdir = os.getcwd() + "/"
+    if config.container.devcontainer.enabled:
+        install_devcontainer(config)
+        wdir += ".devcontainer/"
         
-    dct = replace_data_in_template(template_filename, data)
-    
-    # docker-compose file representation as dictionnary
-    data_dict  = yaml.safe_load(dct)
-    
-    # Append volumes to docker-compose.yml
-    data_dict["services"][f"{config.container.main_service_name}"]["volumes"] = config.volumes
-    
-    # Add extra options to container service
-    data_dict["services"][f"{config.container.main_service_name}"].update(cnt_extra_opt)
-    
-    dct = yaml.dump(data_dict)
-    
-    open(wdir+"docker-compose.yml", "w").write(dct)
-    return data_dict
-    
+    docker_compose.export(file_path=wdir + "docker-compose.yml")
+        
+    return 0
+        
 def install(debug=False):  
 
     config_filename = CONFIG_FILE
@@ -205,7 +170,7 @@ def install(debug=False):
           
         
     config = Config.load_from_yml(yml_filename=config_filename)
-    
+    install_docker_compose(config)
     
     return config
 
