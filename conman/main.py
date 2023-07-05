@@ -16,77 +16,90 @@ from conman.commands.status import status
 from conman.commands.install import install
 
 
-CMDS = {"init": init, 
-        "clean": clean,
-        "status": status,
-        "install": install,
-        }
+CMDS = {
+    "init": init,
+    "clean": clean,
+    "status": status,
+    "install": install,
+}
+
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
-    parser = argparse.ArgumentParser(prog='conman',
-                                     description='Conman is a tool to manage yours containers',)
+    parser = argparse.ArgumentParser(
+        prog="conman",
+        description="Conman is a tool to manage yours containers",
+    )
 
     # https://stackoverflow.com/a/8521644/812183
     parser.add_argument(
-        '-V', '--version',
-        action='version',
-        version=f'%(prog)s {C.VERSION}',
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s {C.VERSION}",
     )
-    
 
     # Generic options - Options group
     group = parser.add_mutually_exclusive_group()
     ## Working directory
-    group.add_argument('-f', '--file',
-                        help='Specify an alternate project file',
-                        )
+    group.add_argument(
+        "-f",
+        "--file",
+        help="Specify an alternate project file",
+    )
     ## Verbose
-    group.add_argument('-v', '--verbose',
-                        action='store_true',
-                        help='Increase verbosity',
-                        ) 
-    
+    group.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Increase verbosity",
+    )
+
     # Subparsers
-    subparsers = parser.add_subparsers(dest='command')
+    subparsers = parser.add_subparsers(dest="command")
 
     # Main commands - Subparsers
-    
+
     ## Status command
-    status_impl_parser = subparsers.add_parser('status',
-                                                help='Show the project status')
-    
+    status_impl_parser = subparsers.add_parser(
+        "status", help="Show the project status"
+    )
+
     ## Init command
-    init_impl_parser = subparsers.add_parser('init', 
-                                             help='Initialize a new project')
-    
+    init_impl_parser = subparsers.add_parser(
+        "init", help="Initialize a new project"
+    )
+
     ## Install command
-    install_impl_parser = subparsers.add_parser('install', 
-                                             help='Install a project')
-   
+    install_impl_parser = subparsers.add_parser(
+        "install", help="Install a project"
+    )
+
     ## Clean command
-    clean_impl_parser = subparsers.add_parser('clean',
-                                                help='Clean the project')
-    
-    
+    clean_impl_parser = subparsers.add_parser(
+        "clean", help="Clean the project"
+    )
+
     # Analyse command line arguments
     args = parser.parse_args(argv)
-    
-    # Update commands attributes relatives to options 
+
+    # Update commands attributes relatives to options
     ## Working directory
     if args.file:
         if os.path.exists(os.path.dirname(args.file)):
             pass
-        else: 
-            print(f"Specified directory: {os.path.dirname(args.file)} do not exist.")
+        else:
+            print(
+                f"Specified directory: {os.path.dirname(args.file)} do not exist."
+            )
     if args.verbose:
         status()
-    
+
     # Run the command
-    for key , value in CMDS.items():
+    for key, value in CMDS.items():
         if args.command == key:
             value()
 
-    
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     raise SystemExit(main())

@@ -7,6 +7,6 @@ class Image(Container):
         self.name = name
         self.tag = tag
         super().__init__(**kwargs)
-        
+
     def check(self):
         print("Check image")

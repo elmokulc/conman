@@ -1,6 +1,7 @@
 import yaml
-import platform 
-import os 
+import platform
+import os
+
 
 def get_user_id_data():
     """
@@ -13,6 +14,7 @@ def get_user_id_data():
     # Check if the OS platform is Linux or Windows
     if platform.system() == "Linux":
         import pwd
+
         return {
             "USER_NAME": os.environ.get("USER"),
             "UID": str(pwd.getpwnam(os.environ.get("USER")).pw_uid),
@@ -158,8 +160,7 @@ class Field:
 
         yaml.add_representer(self.__class__, Field.field_representer)
 
-    
-        
+
 @asi
 class DockerCompose(Field):
     """
@@ -282,7 +283,7 @@ class Service(Field):
         self.deploy = Deploy()
         self.container_name = container_name
         self.volumes = volumes
-        
+
     def activate_display(self):
         """
         Activates the display configuration.
@@ -295,7 +296,7 @@ class Service(Field):
         self.extra_volumes_display()
         self.privileged = True
         self.network_mode = "host"
-        
+
     def extra_volumes_display(self):
         """
         Adds extra volumes required for display configuration.
@@ -341,7 +342,9 @@ class Build(Field):
             Activates the display configuration.
     """
 
-    def __init__(self, dockerfile="./Dockerfile", args=[], context=".", **kwargs):
+    def __init__(
+        self, dockerfile="./Dockerfile", args=[], context=".", **kwargs
+    ):
         """
         Initializes a new instance of the Build class.
 
@@ -360,7 +363,6 @@ class Build(Field):
         self.dockerfile = dockerfile
 
         self.get_user_specific_args()
-
 
     def get_user_specific_args(self):
         """
@@ -401,7 +403,8 @@ class Build(Field):
 
         self.args.append(f"{arg_name}={arg_value}")
         self.args.sort()
-        
+
+
 @asi
 class Deploy(Field):
     """
@@ -449,17 +452,20 @@ class Deploy(Field):
             None
         """
 
-        self.resources.reservation.add_field("devices", [{"driver": driver, "count": count, "capabilities": capabilities}])
-
+        self.resources.reservation.add_field(
+            "devices",
+            [{"driver": driver, "count": count, "capabilities": capabilities}],
+        )
 
 
 if __name__ == "__main__":
-
     # Create DockerCompose instance
     docker_compose = DockerCompose()
 
     # Add main_container service
-    docker_compose.add_service("main_service", container_name="my_custom_container")
+    docker_compose.add_service(
+        "main_service", container_name="my_custom_container"
+    )
 
     # If you want to add a deploy field for gpu access
     docker_compose.services.main_service.deploy.activate_gpu()
