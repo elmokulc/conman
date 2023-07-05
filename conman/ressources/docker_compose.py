@@ -17,14 +17,14 @@ def get_user_id_data():
 
         return {
             "USER_NAME": os.environ.get("USER"),
-            "UID": str(pwd.getpwnam(os.environ.get("USER")).pw_uid),
-            "GID": str(pwd.getpwnam(os.environ.get("USER")).pw_gid),
+            "USER_UID": str(pwd.getpwnam(os.environ.get("USER")).pw_uid),
+            "USER_GID": str(pwd.getpwnam(os.environ.get("USER")).pw_gid),
         }
     elif platform.system() == "Windows":
         return {
             "USER_NAME": os.environ.get("USER"),
-            "UID": "1000",
-            "GID": "1000",
+            "USER_UID": "1000",
+            "USER_GID": "1000",
         }
 
 
@@ -187,15 +187,18 @@ class DockerCompose(Field):
 
     """
 
-    def __init__(self):
+    def __init__(self, compose_img_name, version="3.9"):
         """
         Initializes a new instance of the DockerCompose class.
-
+        Args:
+            compose_img_name (str): The name of the image created via docker compose.
         Returns:
             None
         """
 
         self.services = Field()
+        self.name = compose_img_name
+        self.version = version
 
     def add_service(self, service_name, **kwargs):
         """
@@ -212,20 +215,15 @@ class DockerCompose(Field):
         service = Service(**kwargs)
         self.services.add_field(service_name, service)
 
-    def to_yaml(self, version="3.9"):
+    def to_yaml(self):
         """
         Converts the DockerCompose object to a YAML string.
-
-        Args:
-            version (str): The version of the Docker Compose file.
 
         Returns:
             str: The YAML representation of the DockerCompose object.
         """
 
-        data = {"version": version}
-        data.update(self.__dict__)
-        return yaml.dump(data, default_flow_style=False)
+        return yaml.dump(self.__dict__, default_flow_style=False)
 
     def export(self, file_path="docker-compose.yml"):
         """
@@ -307,7 +305,6 @@ class Service(Field):
 
         self.volumes += [
             "/tmp/.X11-unix:/tmp/.X11-unix:rw",
-            f"/home/{get_user_id_data()['USER_NAME']}/.Xauthority:root/.Xauthority:rw",
             f"/home/{get_user_id_data()['USER_NAME']}/.Xauthority:/home/{get_user_id_data()['USER_NAME']}/.Xauthority:rw",
         ]
 
@@ -343,7 +340,7 @@ class Build(Field):
     """
 
     def __init__(
-        self, dockerfile="./Dockerfile", args=[], context=".", **kwargs
+        self, dockerfile="./Dockerfile-conman", args=[], context=".", **kwargs
     ):
         """
         Initializes a new instance of the Build class.
@@ -437,9 +434,11 @@ class Deploy(Field):
         """
 
         self.resources = Field()
-        self.resources.add_field("reservation", Field())
+        self.resources.add_field("reservations", Field())
 
-    def activate_gpu(self, driver="nvidia", count=1, capabilities=["gpu"]):
+    def activate_gpu(
+        self, driver="nvidia", count: int = 1, capabilities=["gpu"]
+    ):
         """
         Activates GPU support for the deployment.
 
@@ -452,9 +451,15 @@ class Deploy(Field):
             None
         """
 
-        self.resources.reservation.add_field(
+        self.resources.reservations.add_field(
             "devices",
-            [{"driver": driver, "count": count, "capabilities": capabilities}],
+            [
+                {
+                    "driver": driver,
+                    "count": int(count),
+                    "capabilities": capabilities,
+                }
+            ],
         )
 
 

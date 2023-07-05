@@ -1,1 +1,1 @@
-from . import docker_compose
+from . import docker_compose, docker

@@ -115,7 +115,7 @@ def install_devcontainer(config):
 
     data = {
         "CONTAINER_NAME": config.container.devcontainer.name,
-        "MAIN_SERVICE_NAME": config.container.main_service_name,
+        "MAIN_SERVICE_NAME": config.container.main_service.name,
     }
 
     # read template file empty_template_devcontainer.json from templates directory
@@ -128,30 +128,53 @@ def install_dockerfile(config):
     dockerfile = rsrc.docker.DockerFile()
     dockerfile.add("ARG", "BASE_IMAGE", comments="ARG BASE_IMAGE")
     dockerfile.add("FROM", "${BASE_IMAGE}", comments="FROM ${BASE_IMAGE}")
-    dockerfile.add(
-        "ARG",
-        ["USER_NAME", "USER_UID", "USER_GID", "CONDA_ENV_NAME"],
-        comments="ARGS",
-    )
-    dockerfile.add(
-        "ENV",
-        [
-            "USER_NAME=${USER_NAME}",
-            "USER_GID=${USER_GID}",
-            "USER_UID=${USER_UID}",
-            "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
-            "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
-            "DISPLAY=${DISPLAY}",
-        ],
-        comments="ENV VARIABLES",
-    )
+    if config.graphical.enabled and config.graphical.protocol == "x11":
+        dockerfile.add(
+            "ARG",
+            ["USER_NAME", "USER_UID", "USER_GID", "CONDA_ENV_NAME", "DISPLAY"],
+            comments="ARGS",
+        )
+        dockerfile.add(
+            "ENV",
+            [
+                "USER_NAME=${USER_NAME}",
+                "USER_GID=${USER_GID}",
+                "USER_UID=${USER_UID}",
+                "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
+                "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
+                "DISPLAY=${DISPLAY}",
+            ],
+        )
+
+        dockerfile.add(
+            "RUN",
+            "apt-get update \\ \n && apt-get install -y sudo x11-apps xauth",
+        )
+
+    else:
+        dockerfile.add(
+            "ARG",
+            ["USER_NAME", "USER_UID", "USER_GID", "CONDA_ENV_NAME"],
+            comments="ARGS",
+        )
+        dockerfile.add(
+            "ENV",
+            [
+                "USER_NAME=${USER_NAME}",
+                "USER_GID=${USER_GID}",
+                "USER_UID=${USER_UID}",
+                "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
+                "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
+            ],
+            comments="ENV VARIABLES",
+        )
 
     dockerfile.add(
         "RUN",
         [
+            f"mkdir -p /etc/sudoers.d",
             f"groupadd --gid $USER_GID $USER_NAME \\ \n    && useradd --uid $USER_UID --gid $USER_GID -m $USER_NAME",
             f"echo $USER_NAME ALL=\\(root\\) NOPASSWD:ALL > /etc/sudoers.d/$USER_NAME \\ \n   && chmod 0440 /etc/sudoers.d/$USER_NAME",
-            "cd / && mkdir python_packages",
             "usermod -a -G root ${USER_NAME}",
         ],
         comments="USER CREATION",
@@ -165,27 +188,44 @@ def install_dockerfile(config):
         arguments=['["/bin/bash", "--login", "-c"]', '["/bin/bash"]'],
     )
 
-    dockerfile.generate("Dockerfile")
+    # Dump docker-compose.yml
+    wdir = os.getcwd() + "/"
+    if config.container.devcontainer.enabled:
+        install_devcontainer(config)
+        wdir += ".devcontainer/"
+
+    dockerfile.generate(wdir + "Dockerfile-conman")
+
+
+def x_access():
+    # Give access to X11
+    print("Executing xhost +local: ...")
+    os.system("xhost +local:")
 
 
 def install_docker_compose(config):
-    docker_compose = rsrc.docker_compose.DockerCompose()
+    docker_compose = rsrc.docker_compose.DockerCompose(
+        compose_img_name=config.container.name
+    )
     docker_compose.add_service(
-        f"{config.container.main_service_name}",
-        container_name=f"{config.container.name}",
+        f"{config.container.main_service.name}",
+        container_name=f"{config.container.main_service.container_name}",
     )
 
     current_service = getattr(
-        docker_compose.services, f"{config.container.main_service_name}"
+        docker_compose.services, f"{config.container.main_service.name}"
     )
 
     if config.gpu.enabled and config.gpu.manufacturer == "nvidia":
         current_service.deploy.activate_gpu(
             driver=f"{config.gpu.manufacturer}", count=f"{config.gpu.count}"
         )
+    else:
+        del current_service.deploy
 
     if config.graphical.enabled and config.graphical.protocol == "x11":
         current_service.activate_display()
+        x_access()
 
     # Add Base image
     current_service.build.add_arg(
@@ -220,7 +260,9 @@ def install(debug=False):
         config_filename = utils.get_tests_dir() + config_filename
 
     config = Config.load_from_yml(yml_filename=config_filename)
+
     install_docker_compose(config)
+    install_dockerfile(config)
 
     return config
 

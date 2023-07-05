@@ -1,5 +1,5 @@
-import conman as cn 
-import os 
+import conman as cn
+import os
 
 
 class TestInit:
@@ -14,8 +14,8 @@ class TestInit:
 
 class TestInstall:
     pass
-    
-    
+
+
 if __name__ == "__main__":
     config = cn.commands.install.install()
     out = cn.commands.install.install_docker_compose(config)

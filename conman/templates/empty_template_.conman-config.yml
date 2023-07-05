@@ -14,17 +14,29 @@ conda:
 graphical:
     enabled: false
     protocol: "x11"
-    
+
 gpu:
     enabled: false
     manufacturer: "nvidia"
     count: 0
 
 container:
-    main_service_name: "main_container"
-    name: "your_container_name"
+    image:
+        name: "compose_img_name"
+    main_service:
+        name: "main_container"
+        container_name: "your_container_name"
     devcontainer:
         enabled: true
         name: "your_devcontainer_name"
-
-    
+        extensions:
+            - "ms-python.python"
+            - "ms-python.vscode-pylance"
+            - "mechatroner.rainbow-csv"
+            - "ms-azuretools.vscode-docker"
+            - "ms-toolsai.jupyter"
+            - "ms-toolsai.jupyter-keymap"
+            - "ms-toolsai.jupyter-renderers"
+            - "mhutchie.git-graph"
+            - "donjayamanne.githistory"
+            - "eamodio.gitlens"
