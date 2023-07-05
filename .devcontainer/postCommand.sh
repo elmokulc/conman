@@ -1,2 +1,2 @@
 cd /workspaces/conman && make dev-install
-pip install pytest ipython
+pip install pytest ipython pre-commit black
