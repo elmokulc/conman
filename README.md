@@ -13,7 +13,7 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 - Docker and Docker-compose
 - Python 3.6+
 - Python modules :
-    - pip
+    - pip 21.0.1+ (Need setuptools integration)
 
 ---
 
@@ -45,22 +45,22 @@ You may need variable to update your `$PATH` variable.
         Author: [****]
         Author-email: [****]
         License: [****]
-        Location: /home/username/.local/lib/python3.8/site-packages
+        Location: /home/<username>/.local/lib/python3.8/site-packages
         Editable project location: [****]
         Requires: [****]
     ```
-    In this example, the location of the entrypoint to be add will be `//home/username/.local/bin`.
+    In this example, the location of the entrypoint to be add will be `/home/<username>/.local/bin`.
 
     You can then add the following line to your `.bashrc` or `.zshrc` file:
 
     ```bash
-    export PATH=$PATH://home/username/.local/bin
+    export PATH=$PATH://home/<username>/.local/bin
     ```
 
     or by running:
 
     ```bash
-    echo 'export PATH=$PATH:/home/username/.local/bin' >> ~/.bashrc
+    echo 'export PATH=$PATH:/home/<username>/.local/bin' >> ~/.bashrc
     ```
 
 
@@ -70,10 +70,11 @@ You may need variable to update your `$PATH` variable.
 
 ## Usage
 
-- Go to the directory where you want to store your containers:
+- Go to you project directory:
 
     ```bash
-        cd <path_to_your_containers_directory>
+        mkdir my_project
+        cd my_project
     ```
 - Create a conman configuration file by running:
 
@@ -83,7 +84,52 @@ You may need variable to update your `$PATH` variable.
 
     This will create a file named `.conman-config.yml` in your project directory.
 
-- Edit the configuration file to fit your needs.
+    ```bash
+    $ ➜ ~/my_project $ conman init
+    $ ➜ ~/my_project $ tree -a
+    .
+    └── .conman-config.yml
+
+    0 directories, 1 file
+    ```
+- Edit the `.conman-config.yml` configuration file to fit your needs.
+
+As example:
+
+```yml 
+    image:
+        name: "ubuntu"
+        tag: "18.04"
+
+    volumes:
+        - "./:/workspace"
+
+    conda:
+        prefix: "/conda"
+        env_name: "base"
+
+    graphical:
+        enabled: false
+        protocol: "x11"
+
+    gpu:
+        enabled: false
+        manufacturer: "nvidia"
+        count: 0
+
+    container:
+        name: "compose_img_name"
+        main_service:
+            name: "main_container"
+            container_name: "your_container_name"
+        devcontainer:
+            enabled: true
+            name: "your_devcontainer_name"
+            extensions: 
+                - "ms-python.python"
+                - "ms-python.vscode-pylance"
+
+```
 - By running: 
     
     ```bash
@@ -91,7 +137,26 @@ You may need variable to update your `$PATH` variable.
     ```
 
     Conman will generate a `docker-compose.yml` file and a `Dockerfile-conman`, enventually a `.devcontainer` directory within a `devcontainer.json` file according to your configuration file.
-    
+
+    ```console
+    $ ➜ ~/my_project $ conman install
+        Checking config file ...
+        base_name = ubuntu:18.04
+        volumes:
+        - .:/workspace
+        conda prefix = /conda
+        conda env name = tutu
+        Executing xhost +local: ...
+    $ ➜ ~/my_project $ tree -a
+        .
+        ├── .conman-config.yml
+        └── .devcontainer
+            ├── devcontainer.json
+            ├── docker-compose.yml
+            └── Dockerfile-conman
+
+        1 directory, 4 files   
+    ``` 
 
 - NB:  All available commands can be listed by running:
 

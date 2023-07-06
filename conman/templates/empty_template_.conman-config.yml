@@ -4,8 +4,7 @@ image:
     name: "your_image_name"
     tag: "your_image_tag"
 
-volumes:
-    []
+volumes: []
 
 conda:
     prefix: "/conda"
@@ -21,22 +20,11 @@ gpu:
     count: 0
 
 container:
-    image:
-        name: "compose_img_name"
+    name: "compose_img_name"
     main_service:
         name: "main_container"
         container_name: "your_container_name"
     devcontainer:
         enabled: true
         name: "your_devcontainer_name"
-        extensions:
-            - "ms-python.python"
-            - "ms-python.vscode-pylance"
-            - "mechatroner.rainbow-csv"
-            - "ms-azuretools.vscode-docker"
-            - "ms-toolsai.jupyter"
-            - "ms-toolsai.jupyter-keymap"
-            - "ms-toolsai.jupyter-renderers"
-            - "mhutchie.git-graph"
-            - "donjayamanne.githistory"
-            - "eamodio.gitlens"
+        extensions: []
