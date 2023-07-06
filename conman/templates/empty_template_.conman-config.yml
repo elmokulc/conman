@@ -7,7 +7,7 @@ image:
 volumes: []
 
 conda:
-    prefix: "/conda"
+    directory: "/opt/conda"
     env_name: "base"
 
 graphical:

@@ -184,6 +184,12 @@ def install_dockerfile(config):
     )
 
     dockerfile.add(
+        "RUN",
+        ["conda init", 'echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc'],
+        comments="Intialize conda and activate conda environment",
+    )
+
+    dockerfile.add(
         cmds=["SHELL", "ENTRYPOINT"],
         arguments=['["/bin/bash", "--login", "-c"]', '["/bin/bash"]'],
     )

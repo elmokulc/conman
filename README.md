@@ -105,8 +105,8 @@ As example:
         - "./:/workspace"
 
     conda:
-        prefix: "/conda"
-        env_name: "base"
+        prefix: "/opt/conda"
+        env_name: "myenv"
 
     graphical:
         enabled: false
