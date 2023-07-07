@@ -340,7 +340,7 @@ class Build(Field):
     """
 
     def __init__(
-        self, dockerfile="./Dockerfile-conman", args=[], context=".", **kwargs
+        self, dockerfile="./Dockerfile-user", args=[], context=".", **kwargs
     ):
         """
         Initializes a new instance of the Build class.

@@ -38,14 +38,13 @@ class Container:
 
 from conman.config.image import Image
 
-CONFIG = {"image": Image}
+CONFIG = {"root_image": Image}
 
 
 class Config(Container):
-    def __init__(self, image, volumes, conda, graphical, gpu, container):
-        self.image = image
+    def __init__(self, root_image, volumes, graphical, gpu, container):
+        self.root_image = root_image
         self.volumes = volumes
-        self.conda = conda
         self.graphical = graphical
         self.gpu = gpu
         self.container = container
@@ -59,7 +58,7 @@ class Config(Container):
         return cls.from_dic(dic)
 
     def build_extra_attr(self):
-        self.base_name = f"{self.image.name}:{self.image.tag}"
+        self.base_name = f"{self.root_image.name}:{self.root_image.tag}"
 
     def check_config_file(self):
         print("Checking config file ...")
@@ -92,8 +91,8 @@ class Config(Container):
             return 0
 
     def check_conda(self):
-        print(f"conda prefix = {self.conda.prefix}")
-        print(f"conda env name = {self.conda.env_name}")
+        print(f"conda direcotry = {self.root_image.conda.directory}")
+        print(f"conda env name = {self.root_image.conda.env_name}")
         return 0
 
     def run_config(self):
@@ -124,8 +123,8 @@ def install_devcontainer(config):
     open(".devcontainer/devcontainer.json", "w").write(dct)
 
 
-def install_dockerfile(config):
-    dockerfile = rsrc.docker.DockerFile()
+def install_dockerfile_user(config):
+    dockerfile = rsrc.docker_file.DockerFile()
     dockerfile.add("ARG", "BASE_IMAGE", comments="ARG BASE_IMAGE")
     dockerfile.add("FROM", "${BASE_IMAGE}", comments="FROM ${BASE_IMAGE}")
     if config.graphical.enabled and config.graphical.protocol == "x11":
@@ -200,7 +199,7 @@ def install_dockerfile(config):
         install_devcontainer(config)
         wdir += ".devcontainer/"
 
-    dockerfile.generate(wdir + "Dockerfile-conman")
+    dockerfile.generate(wdir + "Dockerfile-user")
 
 
 def x_access():
@@ -240,10 +239,10 @@ def install_docker_compose(config):
 
     # Add conda configuration
     current_service.build.add_arg(
-        arg_name="CONDA_ENV_NAME", arg_value=config.conda.env_name
+        arg_name="CONDA_ENV_NAME", arg_value=config.root_image.conda.env_name
     )
     current_service.build.add_arg(
-        arg_name="CONDA_PREFIX", arg_value=config.conda.prefix
+        arg_name="CONDA_DIRECTORY", arg_value=config.root_image.conda.directory
     )
 
     # Appends volumes
@@ -260,6 +259,135 @@ def install_docker_compose(config):
     return 0
 
 
+def install_dockerfile_root(config):
+
+    # Create a Dockerfile object
+    dockerfile = rsrc.docker_file.DockerFile()
+
+    dockerfile.add("FROM", "ubuntu:20.04", comments="Source image")
+
+    # Set Debian frontend to noninteractive
+    dockerfile.add("ENV", 'DEBIAN_FRONTEND="noninteractive" TZ="Europe/Paris"')
+
+    # Add basics libraries
+    dockerfile.add("RUN", "apt-get update", comments="Updating apt cache")
+
+    dockerfile.add(
+        "RUN",
+        "apt-get install -y build-essential cmake libncurses5-dev libncursesw5-dev libv4l-dev libxcursor-dev libxcomposite-dev libxdamage-dev libxrandr-dev libxtst-dev libxss-dev libdbus-1-dev libevent-dev libfontconfig1-dev libcap-dev libpulse-dev libudev-dev libpci-dev libnss3-dev libasound2-dev libegl1-mesa-dev",
+        comments="Development Tools and Libraries",
+    )
+
+    dockerfile.add(
+        "RUN", "apt-get install -y ffmpeg", comments="Multimedia libraries"
+    )
+
+    dockerfile.add(
+        "RUN",
+        "apt-get update && apt-get install -y x11-apps xauth",
+        comments="X11 libraries",
+    )
+
+    dockerfile.add(
+        "RUN",
+        "apt-get install -y git wget sudo gperf bison nodejs htop",
+        comments="Other libraries",
+    )
+
+    dockerfile.add(
+        "RUN",
+        [
+            "apt install locales",
+            "locale-gen en_US.UTF-8",
+            "dpkg-reconfigure locales",
+        ],
+        comments="Locales update",
+    )
+
+    dockerfile.add("RUN", "apt-get clean", comments="Cleaning apt cache")
+
+    # Conda settings and installation
+    if config.root_image.conda.enabled:
+        conda_directory = config.root_image.conda.directory
+        conda_env_name = config.root_image.conda.env_name
+        environment_file = config.root_image.conda.environment_file
+        # Add conda arguments
+        dockerfile.add(
+            "ARG",
+            [
+                f"CONDA_DIRECTORY={conda_directory}",
+                f"CONDA_ENV_NAME={conda_env_name}",
+            ],
+            comments="CONDA ARGS",
+        )
+
+        # Define conda environment variables
+        dockerfile.add(
+            "ENV",
+            [
+                "CONDA_DIRECTORY $CONDA_DIRECTORY",
+                "CONDA_ENV_NAME $CONDA_ENV_NAME",
+                "CONDA_BIN_PATH $CONDA_DIRECTORY/condabin/conda",
+                "CONDA_ENV_BIN_PATH $CONDA_DIRECTORY/envs/$CONDA_ENV_NAME/bin",
+                "CONDA_ENV_PATH $CONDA_DIRECTORY/envs/$CONDA_ENV_NAME",
+            ],
+            comments="Conda environment variables",
+        )
+
+        # Add conda executable to PATH
+
+        dockerfile.add(
+            "ENV",
+            "PATH $CONDA_DIRECTORY/condabin/:$PATH",
+            comments="Add conda executable to PATH",
+        )
+
+        # Setting umask to 0000
+
+        dockerfile.add(
+            "RUN",
+            [
+                'line_num=$(cat /etc/pam.d/common-session | grep -n umask | cut -d: -f1 | tail -1) && \ \n\tsed -i "${line_num}s/.*/session optional pam_umask.so umask=000/" /etc/pam.d/common-session',
+                'line_num=$(cat /etc/login.defs | grep -n UMASK | cut -d: -f1 | tail -1) && \ \n\tsed -i "${line_num}s/.*/UMASK               000/" /etc/pam.d/common-session',
+                "echo 'umask 000' >> ~/.profile",
+            ],
+            comments="Setting umask",
+        )
+
+        # Installing miniconda
+        dockerfile.add(
+            "RUN",
+            "umask 000 && \ \n\tmkdir -p ${CONDA_DIRECTORY} && \ \n\tchmod 777 ${CONDA_DIRECTORY} && \ \n\twget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \ \n\tbin/bash ~/miniconda.sh -ub -p $CONDA_DIRECTORY && \ \n\trm ~/miniconda.sh",
+            comments="Installing miniconda",
+        )
+
+        dockerfile.add(
+            ["COPY", "RUN"],
+            [
+                f"{environment_file} /tmp/environment.yml",
+                "umask 000 && \ \n\tconda update -n base conda && \ \n\tconda create -y -n $CONDA_ENV_NAME && \ \n\tconda env update --name $CONDA_ENV_NAME --file /tmp/environment.yml --prune ",
+            ],
+            comments="Conda env creation",
+        )
+
+        dockerfile.add(
+            "RUN",
+            [
+                'echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc',
+                'echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc',
+            ],
+            comments="Conda env activation for root user",
+        )
+
+    dockerfile.add(
+        "SHELL",
+        '["/bin/bash -c", "--login", "-c"]',
+        comments="Set shell to bash",
+    )
+
+    dockerfile.generate("Dockerfile")
+
+
 def install(debug=False):
     config_filename = CONFIG_FILE
     if debug:
@@ -268,7 +396,10 @@ def install(debug=False):
     config = Config.load_from_yml(yml_filename=config_filename)
 
     install_docker_compose(config)
-    install_dockerfile(config)
+    install_dockerfile_user(config)
+
+    if config.root_image.generate:
+        install_dockerfile_root(config)
 
     return config
 

@@ -1,14 +1,16 @@
 # This is the default configuration file for conman.
 
-image:
+root_image:
+    generate: false
     name: "your_image_name"
     tag: "your_image_tag"
+    conda:
+        enabled: true
+        directory: "/opt/conda"
+        env_name: "myenv"
+        environment_file: "environment.yml"
 
 volumes: []
-
-conda:
-    directory: "/opt/conda"
-    env_name: "base"
 
 graphical:
     enabled: false
