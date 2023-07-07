@@ -25,7 +25,7 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
     pip install git+https://github.com/elmokulc/conman.git@<branch_name>
     ```
 
-    **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current most advanced branch is 'dev'.
+    **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current most advanced branch is `dev`.
 
 - According to your system configuration and yours permissions, the location of the entry point of conman may change.
 You may need variable to update your `$PATH` variable.
@@ -64,7 +64,7 @@ You may need variable to update your `$PATH` variable.
     ```
 
 
-    This will add the conman executable to your $PATH variable.
+    This will add the conman executable to your `$PATH` variable.
 
 ---
 
@@ -97,65 +97,71 @@ You may need variable to update your `$PATH` variable.
 As example:
 
 ```yml 
-    image:
-        name: "ubuntu"
-        tag: "18.04"
-
-    volumes:
-        - "./:/workspace"
-
+root_image:
+    generate: true
+    name: "ubuntu"
+    tag: "20.04"
     conda:
-        prefix: "/opt/conda"
+        enabled: true
+        directory: "/opt/conda"
         env_name: "myenv"
+        environment_file: "environment.yml"  
 
-    graphical:
-        enabled: false
-        protocol: "x11"
+volumes:
+    - .:/workspace
 
-    gpu:
-        enabled: false
-        manufacturer: "nvidia"
-        count: 0
+graphical:
+    enabled: true
+    protocol: "x11"
 
-    container:
-        name: "compose_img_name"
-        main_service:
-            name: "main_container"
-            container_name: "your_container_name"
-        devcontainer:
-            enabled: true
-            name: "your_devcontainer_name"
-            extensions: 
-                - "ms-python.python"
-                - "ms-python.vscode-pylance"
+gpu:
+    enabled: true
+    manufacturer: "nvidia"
+    count: 1
 
+container:
+    name: "compose_img_name"
+    main_service:
+        name: "main_container"
+        container_name: "your_container_name"
+    devcontainer:
+        enabled: true
+        name: "your_devcontainer_name"
+        extensions:
+            - "ms-python.python"
+            - "ms-python.vscode-pylance"
 ```
+
 - By running: 
     
     ```bash
     conman install
     ```
 
-    Conman will generate a `docker-compose.yml` file and a `Dockerfile-conman`, enventually a `.devcontainer` directory within a `devcontainer.json` file according to your configuration file.
+    Conman will generate a `docker-compose.yml` file and a `Dockerfile-user`, enventually both a `.devcontainer` directory within a `devcontainer.json` file and a `Dockerfile` according to your configuration file.
+
+    Here is an example of the output from the previous configuration file:
 
     ```console
     $ ➜ ~/my_project $ conman install
-        Checking config file ...
-        base_name = ubuntu:18.04
-        volumes:
-        - .:/workspace
-        conda prefix = /conda
-        conda env name = tutu
-        Executing xhost +local: ...
+    Checking config file ...
+    base_name = ubuntu:20.04
+    volumes:
+    - .:/workspace
+    conda direcotry = /opt/conda
+    conda env name = myenv
+    Executing xhost +local: ...
+    Directory .devcontainer created
     $ ➜ ~/my_project $ tree -a
-        .
-        ├── .conman-config.yml
-        └── .devcontainer
-            ├── devcontainer.json
-            ├── docker-compose.yml
-            └── Dockerfile-conman
+    .
+    ├── .conman-config.yml
+    ├── .devcontainer
+    │   ├── devcontainer.json
+    │   ├── docker-compose.yml
+    │   └── Dockerfile-user
+    └── Dockerfile
 
-        1 directory, 4 files   
+        1 directory, 5 files   
     ``` 
 
 - NB:  All available commands can be listed by running:
