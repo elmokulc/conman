@@ -167,6 +167,18 @@ container:
     conda env name = myenv
     Executing xhost +local: ...
     Directory .devcontainer created
+    Extra instructions found. Adding them to Dockerfile
+    Adding:         RUN sudo mkdir -p /python_modules
+    Adding:         RUN sudo chown -R $USER:$USER /python_modules
+    Adding:         RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc
+    Generated Dockerfile-user at:    /home/vscode/my_project/.devcontainer/Dockerfile-user
+    Conda env file exists at:       ./environment.yml
+    Extra instructions found. Adding them to Dockerfile
+    Adding:         RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc
+    Generated Dockerfile at:         /home/vscode/my_project/Dockerfile
+    ```
+    The project directory will now look like this:
+    ```console
     $ ➜ ~/my_project $ tree -a
     .
     ├── .conman-config.yml
@@ -178,7 +190,7 @@ container:
     └── environment.yml
 
 
-        1 directory, 5 files   
+        1 directory, 6 files   
     ``` 
 
 - NB:  All available commands can be listed by running:
