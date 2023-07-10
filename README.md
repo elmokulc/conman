@@ -153,7 +153,7 @@ container:
     conman install
     ```
 
-    Conman will generate a `docker-compose.yml` file and a `Dockerfile-user`, enventually both a `.devcontainer` directory within a `devcontainer.json` file and a `Dockerfile` according to your configuration file.
+    Conman will generate a `docker-compose.yml` file and a `Dockerfile-user`, enventually: a `.devcontainer` directory within a `devcontainer.json` file, a `Dockerfile` end a conda `environment.yml` file, all of this according to your configuration file.
 
     Here is an example of the output from the previous configuration file:
 
@@ -174,7 +174,9 @@ container:
     │   ├── devcontainer.json
     │   ├── docker-compose.yml
     │   └── Dockerfile-user
-    └── Dockerfile
+    ├── Dockerfile
+    └── environment.yml
+
 
         1 directory, 5 files   
     ``` 
