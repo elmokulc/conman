@@ -42,6 +42,29 @@ class DockerFile:
 
         self.instructions.append(Instructions(cmds, arguments, comments))
 
+    def add_line(self, line, comments=""):
+        """
+        Adds a new instruction to the Dockerfile.
+
+        Args:
+            line (str): The line of the instruction.
+
+        Returns:
+            None
+        """
+
+        cmd = line.split(" ")[0]
+        args = " ".join(line.split(" ")[1:])
+        self.instructions.append(Instructions(cmd, args, comments))
+
+    def closing_file(self):
+        self.add(
+            cmds=["SHELL", "ENTRYPOINT"],
+            arguments=['["/bin/bash", "--login", "-c"]', '["/bin/bash"]'],
+            comments="Closing file",
+        )
+        return self
+
     def generate(self, filename):
         """
         Generates the Dockerfile content and writes it to a file.
@@ -57,6 +80,7 @@ class DockerFile:
             file.writelines(
                 instruction.generate() for instruction in self.instructions
             )
+        print(f"Generated {filename.split('/')[-1]} at: \t {filename}")
 
 
 class Instructions:

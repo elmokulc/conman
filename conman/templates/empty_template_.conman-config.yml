@@ -1,16 +1,25 @@
 # This is the default configuration file for conman.
 
 root_image:
-    generate: false
-    name: "your_image_name"
-    tag: "your_image_tag"
+    generate: true
+    name: "root_img_name"
+    tag: "root_img_tag"
+    from_image:
+        name: "ubuntu"
+        tag: "20.04"
     conda:
         enabled: true
         directory: "/opt/conda"
         env_name: "myenv"
-        environment_file: "environment.yml"
+        environment_file: "./environment.yml"
+    extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]" classically add root specific instructions
 
-volumes: []
+user_image:
+    name: "user_img_name"
+    tag: "user_img_tag"
+    extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]", classically add user specific instructions (don't sudo if needed)
+
+volumes: [] # Use docker compose volumes syntaxe <path_host>:<path_container>
 
 graphical:
     enabled: false

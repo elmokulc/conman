@@ -6,6 +6,7 @@ class Image(Container):
     def __init__(self, name, tag, **kwargs):
         self.name = name
         self.tag = tag
+        self.basename = f"{self.name}:{self.tag}"
         super().__init__(**kwargs)
 
     def check(self):

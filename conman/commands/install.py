@@ -38,12 +38,19 @@ class Container:
 
 from conman.config.image import Image
 
-CONFIG = {"root_image": Image}
+CONFIG = {
+    "root_image": Image,
+    "from_image": Image,
+    "user_image": Image,
+}
 
 
 class Config(Container):
-    def __init__(self, root_image, volumes, graphical, gpu, container):
+    def __init__(
+        self, root_image, user_image, volumes, graphical, gpu, container
+    ):
         self.root_image = root_image
+        self.user_image = user_image
         self.volumes = volumes
         self.graphical = graphical
         self.gpu = gpu
@@ -58,7 +65,7 @@ class Config(Container):
         return cls.from_dic(dic)
 
     def build_extra_attr(self):
-        self.base_name = f"{self.root_image.name}:{self.root_image.tag}"
+        pass
 
     def check_config_file(self):
         print("Checking config file ...")
@@ -70,12 +77,12 @@ class Config(Container):
         return 0
 
     def check_image(self):
-        if self.base_name == "your_image_name:your_image_tag":
-            print("Error: base_name is not valid")
-            print(f"\t=> Current name is <{self.base_name}>")
+        if self.user_image.basename == "your_image_name:your_image_tag":
+            print("Error: basename is not valid")
+            print(f"\t=> Current name is <{self.user_image.basename}>")
             return 1
         else:
-            print(f"base_name = {self.base_name}")
+            print(f"basename = {self.user_image.basename}")
             return 0
 
     def check_volumes(self):
@@ -121,6 +128,93 @@ def install_devcontainer(config):
     template_filename = "empty_template_devcontainer.json"
     dct = replace_data_in_template(template_filename, data)
     open(".devcontainer/devcontainer.json", "w").write(dct)
+
+
+def x_access():
+    # Give access to X11
+    print("Executing xhost +local: ...")
+    os.system("xhost +local:")
+
+
+def manage_conda_env_file(
+    envfile,
+    conda_env_name,
+    pip_packages=["scipy", "opencv-python", "opencv-contrib-python"],
+    conda_packages=["python=3.8", "pip", "numpy"],
+    channels=["conda-forge", "anaconda", "defaults"],
+):
+    """_summary_
+    Manage conda environment.yml file
+    if file exists do nothing else create an empty file
+    Args:
+        envfile (str): environment.yml file path
+    """
+
+    if not os.path.isfile(envfile):
+        print(f"Creating conda env file at: \t{envfile}")
+        open(envfile, "w").write("name: " + conda_env_name + "\n")
+        open(envfile, "a").write("channels: \n")
+        for channel in channels:
+            open(envfile, "a").write("  - " + channel + "\n")
+        open(envfile, "a").write("dependencies: \n")
+        for conda_package in conda_packages:
+            open(envfile, "a").write("  - " + conda_package + "\n")
+        open(envfile, "a").write("  - pip: \n")
+        for pip_package in pip_packages:
+            open(envfile, "a").write("    - " + pip_package + "\n")
+    else:
+        print(f"Conda env file exists at: \t{envfile}")
+
+
+def install_docker_compose(config):
+    docker_compose = rsrc.docker_compose.DockerCompose(
+        compose_img_name=config.container.name
+    )
+    docker_compose.add_service(
+        f"{config.container.main_service.name}",
+        container_name=f"{config.container.main_service.container_name}",
+    )
+
+    current_service = getattr(
+        docker_compose.services, f"{config.container.main_service.name}"
+    )
+
+    if config.gpu.enabled and config.gpu.manufacturer == "nvidia":
+        current_service.deploy.activate_gpu(
+            driver=f"{config.gpu.manufacturer}", count=f"{config.gpu.count}"
+        )
+    else:
+        del current_service.deploy
+
+    if config.graphical.enabled and config.graphical.protocol == "x11":
+        current_service.activate_display()
+        x_access()
+
+    # Add Base image
+    current_service.build.add_arg(
+        arg_name="BASE_IMAGE", arg_value=config.root_image.basename
+    )
+
+    # Add conda configuration
+    current_service.build.add_arg(
+        arg_name="CONDA_ENV_NAME", arg_value=config.root_image.conda.env_name
+    )
+    current_service.build.add_arg(
+        arg_name="CONDA_DIRECTORY", arg_value=config.root_image.conda.directory
+    )
+
+    # Appends volumes
+    current_service.volumes += config.volumes
+
+    # Dump docker-compose.yml
+    wdir = os.getcwd() + "/"
+    if config.container.devcontainer.enabled:
+        install_devcontainer(config)
+        wdir += ".devcontainer/"
+
+    docker_compose.export(file_path=wdir + "docker-compose.yml")
+
+    return 0
 
 
 def install_dockerfile_user(config):
@@ -188,83 +282,45 @@ def install_dockerfile_user(config):
         comments="Intialize conda and activate conda environment",
     )
 
-    dockerfile.add(
-        cmds=["SHELL", "ENTRYPOINT"],
-        arguments=['["/bin/bash", "--login", "-c"]', '["/bin/bash"]'],
-    )
+    # Adding extra instructions if any
+    if config.user_image.extra_instructions:
+        print("Extra instructions found. Adding them to Dockerfile")
+        for ind, instruction in enumerate(
+            config.user_image.extra_instructions
+        ):
+            print(f"Adding: \t{instruction}")
+            if ind == 0:
+                dockerfile.add_line(
+                    instruction, comments="----Extra instructions----"
+                )
+            else:
+                dockerfile.add_line(instruction)
 
-    # Dump docker-compose.yml
+    # Dump Dockerfile
     wdir = os.getcwd() + "/"
     if config.container.devcontainer.enabled:
         install_devcontainer(config)
         wdir += ".devcontainer/"
 
-    dockerfile.generate(wdir + "Dockerfile-user")
-
-
-def x_access():
-    # Give access to X11
-    print("Executing xhost +local: ...")
-    os.system("xhost +local:")
-
-
-def install_docker_compose(config):
-    docker_compose = rsrc.docker_compose.DockerCompose(
-        compose_img_name=config.container.name
-    )
-    docker_compose.add_service(
-        f"{config.container.main_service.name}",
-        container_name=f"{config.container.main_service.container_name}",
-    )
-
-    current_service = getattr(
-        docker_compose.services, f"{config.container.main_service.name}"
-    )
-
-    if config.gpu.enabled and config.gpu.manufacturer == "nvidia":
-        current_service.deploy.activate_gpu(
-            driver=f"{config.gpu.manufacturer}", count=f"{config.gpu.count}"
-        )
-    else:
-        del current_service.deploy
-
-    if config.graphical.enabled and config.graphical.protocol == "x11":
-        current_service.activate_display()
-        x_access()
-
-    # Add Base image
-    current_service.build.add_arg(
-        arg_name="BASE_IMAGE", arg_value=config.base_name
-    )
-
-    # Add conda configuration
-    current_service.build.add_arg(
-        arg_name="CONDA_ENV_NAME", arg_value=config.root_image.conda.env_name
-    )
-    current_service.build.add_arg(
-        arg_name="CONDA_DIRECTORY", arg_value=config.root_image.conda.directory
-    )
-
-    # Appends volumes
-    current_service.volumes += config.volumes
-
-    # Dump docker-compose.yml
-    wdir = os.getcwd() + "/"
-    if config.container.devcontainer.enabled:
-        install_devcontainer(config)
-        wdir += ".devcontainer/"
-
-    docker_compose.export(file_path=wdir + "docker-compose.yml")
-
-    return 0
+    dockerfile.closing_file().generate(wdir + "Dockerfile-user")
 
 
 def install_dockerfile_root(config):
-
+    wdir = os.getcwd() + "/"
     # Create a Dockerfile object
     dockerfile = rsrc.docker_file.DockerFile()
 
-    dockerfile.add("FROM", "ubuntu:20.04", comments="Source image")
+    debian_os = ["debian", "ubuntu"]
+    if config.root_image.from_image.name not in debian_os:
+        raise Exception(
+            f"Image {config.root_image.from_image.name} not supported yet.\nSupported images are: {debian_os}"
+        )
+
+    dockerfile.add(
+        "FROM",
+        f"{config.root_image.from_image.basename}",
+        comments="Source image",
+    )
 
     # Set Debian frontend to noninteractive
     dockerfile.add("ENV", 'DEBIAN_FRONTEND="noninteractive" TZ="Europe/Paris"')
@@ -361,6 +417,8 @@ def install_dockerfile_root(config):
             comments="Installing miniconda",
         )
 
+        manage_conda_env_file(environment_file, conda_env_name)
+
         dockerfile.add(
             ["COPY", "RUN"],
             [
@@ -379,13 +437,22 @@ def install_dockerfile_root(config):
             comments="Conda env activation for root user",
         )
 
-    dockerfile.add(
-        "SHELL",
-        '["/bin/bash -c", "--login", "-c"]',
-        comments="Set shell to bash",
-    )
+    # Adding extra instructions if any
+    if config.root_image.extra_instructions:
+        print("Extra instructions found. Adding them to Dockerfile")
+        for ind, instruction in enumerate(
+            config.root_image.extra_instructions
+        ):
+            print(f"Adding: \t{instruction}")
+            if ind == 0:
+                dockerfile.add_line(
+                    instruction, comments="----Extra instructions----"
+                )
+            else:
+                dockerfile.add_line(instruction)
 
-    dockerfile.generate("Dockerfile")
+    # Dump Dockerfile
+    dockerfile.closing_file().generate(wdir + "Dockerfile")
 
 
 def install(debug=False):

@@ -99,16 +99,31 @@ As example:
 ```yml 
 root_image:
     generate: true
-    name: "ubuntu"
-    tag: "20.04"
+    name: "my_root_img"
+    tag: "0.1"
+    from_image: 
+        name: "ubuntu"
+        tag: "20.04"
     conda:
         enabled: true
         directory: "/opt/conda"
         env_name: "myenv"
-        environment_file: "environment.yml"  
+        environment_file: "./environment.yml"
+    extra_instructions: 
+        - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
+
+user_image:
+    name: "my_user_img"
+    tag: "0.1"
+    extra_instructions: 
+        - "RUN sudo mkdir -p /python_modules"
+        - "RUN sudo chown -R $USER:$USER /python_modules"
+        - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
 
 volumes:
     - .:/workspace
+    - path_module1/module1:/python_modules/module1
+    - path_module1/module2:/python_modules/module2
 
 graphical:
     enabled: true
