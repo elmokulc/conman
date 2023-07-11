@@ -27,45 +27,6 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 
     **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current most advanced branch is `dev`.
 
-- According to your system configuration and yours permissions, the location of the entry point of conman may change.
-You may need variable to update your `$PATH` variable.
-
-    The command:
-
-    ```bash
-    pip show conman
-    ```
-    
-    will give you the following output within the location of the conman package:
-    ```console hl_lines="1"
-        Name: conman
-        Version: [****]
-        Summary: [****]
-        Home-page: [****]
-        Author: [****]
-        Author-email: [****]
-        License: [****]
-        Location: /home/<username>/.local/lib/python3.8/site-packages
-        Editable project location: [****]
-        Requires: [****]
-    ```
-    In this example, the location of the entrypoint to be add will be `/home/<username>/.local/bin`.
-
-    You can then add the following line to your `.bashrc` or `.zshrc` file:
-
-    ```bash
-    export PATH=$PATH://home/<username>/.local/bin
-    ```
-
-    or by running:
-
-    ```bash
-    echo 'export PATH=$PATH:/home/<username>/.local/bin' >> ~/.bashrc
-    ```
-
-
-    This will add the conman executable to your `$PATH` variable.
-
 ---
 
 ## Usage
@@ -123,7 +84,7 @@ user_image:
 volumes:
     - .:/workspace
     - path_module1/module1:/python_modules/module1
-    - path_module1/module2:/python_modules/module2
+    - path_module2/module2:/python_modules/module2
 
 graphical:
     enabled: true
@@ -153,7 +114,7 @@ container:
     conman install
     ```
 
-    Conman will generate a `docker-compose.yml` file and a `Dockerfile-user`, enventually: a `.devcontainer` directory within a `devcontainer.json` file, a `Dockerfile` end a conda `environment.yml` file, all of this according to your configuration file.
+    Conman will generate a `docker-compose.yml` file and a `Dockerfile-user`, enventually: a `.devcontainer` directory within a `devcontainer.json` file, a `Dockerfile` and a conda `environment.yml` file, all of this according to your configuration file: `.conman-config.yml` .
 
     Here is an example of the output from the previous configuration file:
 
@@ -173,7 +134,7 @@ container:
     Adding:         RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc
     Generated Dockerfile-user at:    /home/vscode/my_project/.devcontainer/Dockerfile-user
     Conda env file exists at:       ./environment.yml
-    Extra instructions found. Adding them to Dockerfile
+    Extra instructions found. Adding them to Dockerfile-user
     Adding:         RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc
     Generated Dockerfile at:         /home/vscode/my_project/Dockerfile
     ```
@@ -198,3 +159,45 @@ container:
     ```bash
     conman --help
     ```
+---
+
+## Troubleshoting
+
+- According to your system configuration and yours permissions, the location of the entry point of conman may change.
+You may need to update your `$PATH` variable.
+
+    The command:
+
+    ```bash
+    pip show conman
+    ```
+    
+    will give you the following output within the location of the conman package:
+    ```console hl_lines="1"
+        Name: conman
+        Version: [****]
+        Summary: [****]
+        Home-page: [****]
+        Author: [****]
+        Author-email: [****]
+        License: [****]
+        Location: /home/<username>/.local/lib/python3.8/site-packages
+        Editable project location: [****]
+        Requires: [****]
+    ```
+    In this example, the location of the entrypoint to be add will be `/home/<username>/.local/bin`.
+
+    You can then add the following line to your `.bashrc` or `.zshrc` file:
+
+    ```bash
+    export PATH=$PATH://home/<username>/.local/bin
+    ```
+
+    or by running:
+
+    ```bash
+    echo 'export PATH=$PATH:/home/<username>/.local/bin' >> ~/.bashrc
+    ```
+
+
+    This will add the conman executable to your `$PATH` variable.
