@@ -1,0 +1,71 @@
+ARG BASE_IMAGE=ubuntu:20.04
+FROM ${BASE_IMAGE}
+
+# BASIC LIBRARIES
+ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
+RUN apt-get update && \
+    apt-get install -y git wget sudo cmake libncurses5-dev libncursesw5-dev build-essential ffmpeg libsm6 libxext6 libv4l-dev && \
+    apt-get install -y libxcursor-dev libxcomposite-dev libxdamage-dev libxrandr-dev libxtst-dev libxss-dev libdbus-1-dev libevent-dev libfontconfig1-dev libcap-dev libpulse-dev libudev-dev libpci-dev libnss3-dev libasound2-dev libegl1-mesa-dev gperf bison nodejs && \
+    apt-get clean
+
+# ARAVIS INSTALL
+RUN echo "** Preparing Machine"
+RUN apt-get install -y autoconf intltool libxml2-dev libgtk-3-dev libnotify-dev gtk-doc-tools libgtk2.0-dev pkg-config
+RUN apt-get install -y gstreamer1.0-nice gstreamer1.0-tools
+RUN apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-0 libgstreamer-plugins-good1.0-0 gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+RUN apt-get install -y gobject-introspection libgirepository1.0-dev python-gobject
+RUN apt-get install -y libusb-1.0 libusb-1.0.0-dev usbutils apt-utils
+RUN apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-doc gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio
+
+
+# MINICONDA3 INSTALL
+ARG CONDA_DIR='/opt/conda'
+ARG CONDA_ENV_NAME='foobar'
+
+ENV CONDA_DIR=$CONDA_DIR
+ENV CONDA_ENV_NAME=$CONDA_ENV_NAME
+ENV CONDA_BIN_PATH $CONDA_DIR/condabin/conda
+ENV PATH=$CONDA_DIR/condabin/:$PATH
+ENV CONDA_ENV_BIN_PATH $CONDA_DIR/envs/${CONDA_ENV_NAME}/bin
+ENV CONDA_ENV_PATH $CONDA_DIR/envs/${CONDA_ENV_NAME}
+
+RUN line_num=$(cat /etc/pam.d/common-session | grep -n umask | cut -d: -f1 | tail -1) && \
+    sed -i "${line_num}s/.*/session optional pam_umask.so umask=000/" /etc/pam.d/common-session
+
+RUN line_num=$(cat /etc/login.defs | grep -n UMASK | cut -d: -f1 | tail -1) && \
+    sed -i "${line_num}s/.*/UMASK               000/" /etc/pam.d/common-session
+RUN echo 'umask 000' >> ~/.profile
+
+RUN umask 000 && \
+    mkdir -p ${CONDA_DIR} && \
+    chmod 777 ${CONDA_DIR} && \
+    wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -ub -p $CONDA_DIR && \
+    rm ~/miniconda.sh
+
+# CONDA ENV CREATION
+COPY environment.yml /tmp/environment.yml
+RUN umask 000 && \
+    conda update -n base conda && \ 
+    conda create -y -n $CONDA_ENV_NAME && \
+    conda env update --name $CONDA_ENV_NAME --file /tmp/environment.yml --prune 
+
+# HTOP INSTALL
+RUN apt-get install -y htop
+
+# LOCALES UPDATE
+RUN apt install locales && \
+    locale-gen en_US.UTF-8 && \
+    dpkg-reconfigure locales
+
+# INSTALL XAUTH
+RUN apt-get update && apt-get install -y x11-apps xauth 
+# MAKING QT APP WORKS
+RUN apt-get update && apt-get install -y libxcb-xinerama0-dev libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-render-util0-dev libxcb-xkb-dev libxkbcommon-x11-0
+
+
+RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc && \
+    echo "export PYTHONPATH=\$PYTHONPATH:/python_packages/" >> ~/.bashrc
+
+SHELL ["/bin/bash", "--login", "-c"]
