@@ -455,7 +455,7 @@ def install_dockerfile_root(config):
     dockerfile.closing_file().generate(wdir + "Dockerfile")
 
 
-def install(debug=False):
+def build(debug=False):
     config_filename = CONFIG_FILE
     if debug:
         config_filename = utils.get_tests_dir() + config_filename

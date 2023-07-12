@@ -13,14 +13,14 @@ import conman.constants as C
 from conman.commands.init import init
 from conman.commands.clean import clean
 from conman.commands.status import status
-from conman.commands.install import install
+from conman.commands.build import build
 
 
 CMDS = {
     "init": init,
     "clean": clean,
     "status": status,
-    "install": install,
+    "install": build,
 }
 
 

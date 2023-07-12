@@ -1,41 +1,44 @@
 # This is the default configuration file for conman.
 
-root_image:
-    generate: true
-    name: "root_img_name"
-    tag: "root_img_tag"
-    from_image:
-        name: "ubuntu"
-        tag: "20.04"
-    conda:
-        enabled: true
-        directory: "/opt/conda"
-        env_name: "myenv"
-        environment_file: "./environment.yml"
-    extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]" classically add root specific instructions
+images:
+    root:
+        generate: true
+        name: "root_img_name"
+        tag: "root_img_tag"
+        from_image:
+            name: "ubuntu"
+            tag: "20.04"
+        conda:
+            enabled: true
+            directory: "/opt/conda"
+            env_name: "myenv"
+            environment_file: "./environment.yml"
+        extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]" classically add root specific instructions
 
-user_image:
-    name: "user_img_name"
-    tag: "user_img_tag"
-    extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]", classically add user specific instructions (don't sudo if needed)
+    user:
+        name: "user_img_name"
+        tag: "user_img_tag"
+        extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]", classically add user specific instructions (don't sudo if needed)
 
-volumes: [] # Use docker compose volumes syntaxe <path_host>:<path_container>
-
-graphical:
-    enabled: false
-    protocol: "x11"
-
-gpu:
-    enabled: false
-    manufacturer: "nvidia"
-    count: 0
+user_settings:
+    volumes: [] # Use docker compose volumes syntaxe <path_host>:<path_container>
 
 container:
     name: "compose_img_name"
     main_service:
         name: "main_container"
         container_name: "your_container_name"
+
     devcontainer:
         enabled: true
         name: "your_devcontainer_name"
         extensions: []
+
+    graphical:
+        enabled: false
+        protocol: "x11"
+
+    gpu:
+        enabled: false
+        manufacturer: "nvidia"
+        count: 0
