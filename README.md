@@ -22,7 +22,7 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 - Install conman using pip:
 
     ```bash
-    pip install git+https://github.com/elmokulc/conman.git@<branch_name>
+    pip install git+https://github.com/elmokulc/conman.git@0.0.1
     ```
 
     **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current stable realease is `1.0`.
