@@ -6,7 +6,8 @@ from pathlib import Path
 import os
 from conman import utils
 import yaml
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import copy
 
 
 def asi(subclass):
@@ -94,6 +95,7 @@ class _Builder:
 
 
 @asi
+@dataclass
 class CondaEnvironment(_Builder):
     enabled: bool = True
     directory: Path = "/opt/conda"
@@ -137,17 +139,33 @@ class CondaEnvironment(_Builder):
 
 
 @asi
+@dataclass
 class Image(_Builder):
-    name: str
-    tag: str
-    from_image: Dict[str, str] = {"name": "ubuntu", "tag": "20.04"}
-    extra_instructions: List[str] = []
+    generate: bool = False
+    name: str = "<image_name>"
+    tag: str = "<image_tag>"
+    from_image: Dict[str, str] = field(
+        default_factory=lambda: {"name": "ubuntu", "tag": "20.04"}
+    )
+    conda_environment: CondaEnvironment = CondaEnvironment()
+    extra_instructions: List[str] = field(default_factory=lambda: [])
 
     def to_dockerfile(self, filename: str = "Dockerfile") -> str:
         ...
 
 
 @asi
+@dataclass
+class ImageUser(_Builder):
+    extra_instructions: List[str] = field(default_factory=lambda: [])
+    __private_root_img__: Image = Image()
+
+    def to_dockerfile(self, filename: str = "Dockerfile") -> str:
+        ...
+
+
+@asi
+@dataclass
 class Graphical(_Builder):
     enabled: bool = False
     protocol: str = "x11"
@@ -159,10 +177,11 @@ class Graphical(_Builder):
 
 
 @asi
+@dataclass
 class Gpu(_Builder):
     enabled: bool = False
     manufacturer: str = "nvidia"
-    count: int = 1
+    count: int = 0
 
 
 class Build:
@@ -214,26 +233,32 @@ class Compose:
 
 
 @asi
+@dataclass
 class DevContainer(_Builder):
-    enable: bool = False
+    enabled: bool = True
     name: str = "devcontainer_name"
-    extensions: List[str] = []
+    extensions: List[str] = field(default_factory=lambda: ["ms-python.python"])
 
     def to_devcontainer_json(self, filename="devcontainer.json") -> None:
         ...
 
 
 @asi
+@dataclass
 class Container(_Builder):
     name: str = "container_name"
-    gpu: Gpu = Gpu()
-    graphical: Graphical = Graphical()
     devcontainer: DevContainer = DevContainer()
+    main_service: Dict[str, str] = field(
+        default_factory=lambda: {"name": "main", "container_name": "whatever"}
+    )
+    graphical: Graphical = Graphical()
+    gpu: Gpu = Gpu()
 
 
 @asi
+@dataclass
 class UserSettings(_Builder):
-    volumes: List[str] = ["../:/workspace"]
+    volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
 
     def update_volumes(self, volumes: List[str]) -> None:
         ...
@@ -242,9 +267,21 @@ class UserSettings(_Builder):
         ...
 
 
+# ROOT_IMG: Image = Image()
+# USER_IMG: ImageUser = ImageUser(__private_root_img__= ROOT_IMG)
+
+
+@asi
+@dataclass
+class Images(_Builder):
+    root: Image = Image()
+    user: ImageUser = ImageUser(__private_root_img__=Image())
+
+
 CONFIG = {
+    "images": Images,
     "root": Image,
-    "user": Image,
+    "user": ImageUser,
     "user_settings": UserSettings,
     "container": Container,
     "gpu": Gpu,
@@ -257,12 +294,16 @@ CONFIG = {
 @asi
 @dataclass
 class Config(_Builder):
-    images = {
-        "root": Image(),
-        "user": Image(),
-    }
+    images: Images = Images()
     container: Container = Container()
     user_settings: UserSettings = UserSettings()
+
+    def __post_init__(self):
+        self._check_images()
+
+    def _check_images(self):
+        # Update user image definition
+        self.images.user.__private_root_img__ = self.images.root
 
     @classmethod
     def load_conman_config_file(
@@ -275,14 +316,82 @@ class Config(_Builder):
         self, filename: Path = ".conman-config.yml"
     ) -> None:
 
+        data = Config.remove_private_attributes(self.copy())
+        stream = yaml.dump(
+            data,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=4,
+        )
+
+        # Prettify the config file
+        config_msg = (
+            "# Conman Configuration File\n"
+            + "# Please take your time and carefully complete this file.\n"
+            + "# < Authored by: C. Elmo and L. Charleux >\n"
+        )
+
+        stream = config_msg + stream
+        prim_attrs = [key for key in config.__dataclass_fields__]
+        for attr in prim_attrs:
+            stream = stream.replace(
+                f"\n{attr}:\n",
+                f"\n\n# {attr.capitalize()} Settings\n{attr}:\n",
+            )
+
+        # Actually write the file
         with open(filename, "w") as f:
-            f.write(yaml.dump(self.__dict__, default_flow_style=False))
+            f.write(stream)
+
+    def copy(self) -> Config:
+        return copy.deepcopy(self)
+
+    @staticmethod
+    def remove_private_attributes(obj) -> None:
+        attributes = obj.__dict__
+        private_attributes = []
+        for attr, value in attributes.items():
+            if attr.startswith("__private_"):
+                private_attributes.append(attr)
+            elif hasattr(value, "__dict__"):
+                Config.remove_private_attributes(value)
+
+        for attr in private_attributes:
+            delattr(obj, attr)
+
+        return obj
+
+    @staticmethod
+    def remove_empty_attributes(obj):
+        # Get all attributes of the object
+        attributes = obj.__dict__
+
+        # Iterate through attributes and remove empty ones
+        empty_attributes = []
+        for attr, value in attributes.items():
+            if isinstance(value, (list, dict)):
+                # Case where the attribute is a list or a dictionary
+                if not value:
+                    empty_attributes.append(attr)
+            elif hasattr(value, "__dict__"):
+                # Case where the attribute is an instance of a class
+                Config.remove_empty_attributes(value)
+                if not value.__dict__:
+                    empty_attributes.append(attr)
+            elif not value:
+                # General case where the attribute is empty
+                empty_attributes.append(attr)
+
+        # Remove empty attributes from the object
+        for attr in empty_attributes:
+            delattr(obj, attr)
 
 
 if __name__ == "__main__":
-    # config_file = "../templates/empty_template_.conman-config.yml"
-    # # config_file = "./test.yml"
-    # config = Config().load_conman_config_file(filename=config_file)
+
+    config_file = "../templates/empty_template_.conman-config.yml"
+    # config_file = "./test.yml"
+    config = Config().load_conman_config_file(filename=config_file)
     # print(config.container.gpu.count)
-    config = Config()
+    # config = Config()
     config.dump_conman_config_file(filename="test.yml")
