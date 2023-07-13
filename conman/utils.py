@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os.path
 import pkg_resources
-import conman
 import shutil
 import os
 import yaml
