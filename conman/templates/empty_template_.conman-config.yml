@@ -2,13 +2,13 @@
 
 images:
     root:
-        generate: true
+        generate: false
         name: "root_img_name"
         tag: "root_img_tag"
         from_image:
             name: "ubuntu"
             tag: "20.04"
-        conda:
+        conda_environment:
             enabled: true
             directory: "/opt/conda"
             env_name: "myenv"
@@ -16,8 +16,6 @@ images:
         extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]" classically add root specific instructions
 
     user:
-        name: "user_img_name"
-        tag: "user_img_tag"
         extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]", classically add user specific instructions (don't sudo if needed)
 
 user_settings:
@@ -27,11 +25,11 @@ container:
     name: "compose_img_name"
     main_service:
         name: "main_container"
-        container_name: "your_container_name"
+        container_name: "container_stack_name"
 
     devcontainer:
         enabled: true
-        name: "your_devcontainer_name"
+        name: "devcontainer_name"
         extensions: []
 
     graphical:
@@ -41,4 +39,4 @@ container:
     gpu:
         enabled: false
         manufacturer: "nvidia"
-        count: 0
+        count: 1
