@@ -1,18 +1,49 @@
 from __future__ import annotations
 
-import os
-from string import Template
-import json
-import shutil
-import platform
-import yaml
+from typing import Any, Dict, List, Optional, Union, Protocol
+from pathlib import Path
 
+import os
 from conman import utils
 from conman.constants import *
-import conman.ressources as rsrc
+import yaml
+from dataclasses import dataclass, field
+import copy
 
 
-class Container:
+def asi(subclass):
+    """
+    A decorator function that adds support for automatic super() initialization to a subclass.
+
+    Args:
+        subclass (class): The subclass to decorate.
+
+    Returns:
+        class: The decorated subclass.
+    """
+
+    original_init = subclass.__init__
+
+    def new_init(self, *args, **kwargs):
+        """
+        Custom initialization method that automatically calls super().__init__().
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            None
+        """
+
+        super(subclass, self).__init__(*args, **kwargs)
+        original_init(self, *args, **kwargs)
+
+    subclass.__init__ = new_init
+    return subclass
+
+
+class _Builder:
     @classmethod
     def from_dic(cls, dic):
         kwargs = {}
@@ -22,7 +53,7 @@ class Container:
                 _class = CONFIG[key]
             else:
                 flag = True
-                _class = Container
+                _class = _Builder
 
             if value.__class__ == dict:
                 kwargs[key] = _class.from_dic(value)
@@ -35,441 +66,392 @@ class Container:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+        self.class_register()
 
-from conman.config.image import Image
+    @staticmethod
+    def class_representer(dumper, data):
+        """
+        A static method used as a custom YAML representer for Field objects.
+
+        Args:
+            dumper (yaml.Dumper): The YAML dumper object.
+            data (Field): The Field object to represent.
+
+        Returns:
+            Any: The YAML representation of the Field object.
+        """
+
+        return dumper.represent_dict(data.__dict__)
+
+    @classmethod
+    def class_register(cls):
+        """
+        Registers the field_representer as a representer for the Field class in YAML.
+
+        Returns:
+            None
+        """
+
+        yaml.add_representer(cls, cls.class_representer)
+
+
+@asi
+@dataclass
+class CondaEnvironment(_Builder):
+    enabled: bool = True
+    directory: Path = "/opt/conda"
+    env_name: str = "myenv"
+    environment_file: Path = "./environment.yml"
+
+    def generate_environment_file(
+        self,
+        pip_packages=["scipy", "opencv-python", "opencv-contrib-python"],
+        conda_packages=["python=3.8", "pip", "numpy"],
+        channels=["conda-forge", "anaconda", "defaults"],
+    ) -> None:
+        """_summary_
+        Manage conda environment.yml file
+        if file exists do nothing else create an empty file
+        Args:
+            self.environment_file (str): environment.yml file path
+        """
+
+        if not os.path.isfile(self.environment_file):
+            print(f"Creating conda env file at: \t{self.environment_file}")
+            with open(self.environment_file, "w") as file:
+                file.write("name: " + self.env_name + "\n")
+
+                # channels
+                file.write("channels: \n")
+                for channel in channels:
+                    file.write("  - " + channel + "\n")
+
+                # dependencies
+                file.write("dependencies: \n")
+                for conda_package in conda_packages:
+                    file.write("  - " + conda_package + "\n")
+
+                # pip packages
+                file.write("  - pip: \n")
+                for pip_package in pip_packages:
+                    file.write("    - " + pip_package + "\n")
+        else:
+            print(f"Conda env file exists at: \t{self.environment_file}")
+
+
+@asi
+@dataclass
+class Image(_Builder):
+    generate: bool = False
+    name: str = "<image_name>"
+    tag: str = "<image_tag>"
+    from_image: Dict[str, str] = field(
+        default_factory=lambda: {"name": "ubuntu", "tag": "20.04"}
+    )
+    conda_environment: CondaEnvironment = CondaEnvironment()
+    extra_instructions: List[str] = field(default_factory=lambda: [])
+
+    def to_dockerfile(self, filename: str = "Dockerfile") -> str:
+        ...
+
+
+@asi
+@dataclass
+class ImageUser(_Builder):
+    extra_instructions: List[str] = field(default_factory=lambda: [])
+    __private_root_img__: Image = Image()
+
+    def to_dockerfile(self, filename: str = "Dockerfile") -> str:
+        ...
+
+
+@asi
+@dataclass
+class Graphical(_Builder):
+    enabled: bool = False
+    protocol: str = "x11"
+
+    def x_access() -> None:
+        # Give access to X11
+        print("Executing xhost +local: ...")
+        os.system("xhost +local:")
+
+
+@asi
+@dataclass
+class Gpu(_Builder):
+    enabled: bool = False
+    manufacturer: str = "nvidia"
+    count: int = 0
+
+
+class Build:
+    args: List[str] = []
+    context: Path = Path(".")
+    dockerfile: Path = Path("./Dockerfile-user")
+
+
+class Resources:
+    limits: Dict[str, str or int] = {}
+    reservations: Dict[Dict[List[Dict]]] = {
+        "devices": [
+            {"driver": Gpu.manufacturer},
+            {"count": Gpu.count},
+            {"capabilities": list("gpu")},
+        ]
+    }
+
+
+class Deploy:
+    resources: Resources = Resources()
+
+
+class Service:
+    name: str
+    ports: List[int] = []
+    volumes: List[Path] = []
+    privileged: bool = False
+    network_mode: str = "host"
+    build: Build = Build()
+    deploy: Deploy = Deploy()
+
+
+class Services:
+    main_service: Service = Service()
+
+    def add_service(self, service: Service) -> None:
+        ...
+
+
+class Compose:
+    version: str = "3.9"
+    services: Services = Services()
+
+    def to_docker_compose(
+        self, filename: Path = "./docker-compose.yml"
+    ) -> None:
+        ...
+
+
+@asi
+@dataclass
+class DevContainer(_Builder):
+    enabled: bool = True
+    name: str = "devcontainer_name"
+    extensions: List[str] = field(default_factory=lambda: ["ms-python.python"])
+
+    def to_devcontainer_json(self, filename="devcontainer.json") -> None:
+        # TODO
+
+        pass
+
+
+@asi
+@dataclass
+class Container(_Builder):
+    name: str = "container_name"
+    devcontainer: DevContainer = DevContainer()
+    main_service: Dict[str, str] = field(
+        default_factory=lambda: {"name": "main", "container_name": "whatever"}
+    )
+    graphical: Graphical = Graphical()
+    gpu: Gpu = Gpu()
+    __private_compose__ = Compose()
+
+
+@asi
+@dataclass
+class UserSettings(_Builder):
+    volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
+
+    def update_volumes(self, volumes: List[str]) -> None:
+        ...
+
+    def check_volumes(self, volumes: List[str]) -> None:
+        ...
+
+
+@asi
+@dataclass
+class Images(_Builder):
+    root: Image = Image()
+    user: ImageUser = ImageUser(__private_root_img__=Image())
+
 
 CONFIG = {
-    "root_image": Image,
-    "from_image": Image,
-    "user_image": Image,
+    "images": Images,
+    "root": Image,
+    "user": ImageUser,
+    "user_settings": UserSettings,
+    "container": Container,
+    "gpu": Gpu,
+    "graphical": Graphical,
+    "devcontainer": DevContainer,
+    "conda_environment": CondaEnvironment,
 }
 
 
-class Config(Container):
-    def __init__(
-        self, root_image, user_image, volumes, graphical, gpu, container
-    ):
-        self.root_image = root_image
-        self.user_image = user_image
-        self.volumes = volumes
-        self.graphical = graphical
-        self.gpu = gpu
-        self.container = container
-        self.status_error = 0
-        self.build_extra_attr()
-        self.check_config_file()
+@asi
+@dataclass
+class Config(_Builder):
+    images: Images = Images()
+    container: Container = Container()
+    user_settings: UserSettings = UserSettings()
+
+    def __post_init__(self):
+        self._check_images()
+
+    def _check_images(self):
+        # Update user image definition
+        self.images.user.__private_root_img__ = self.images.root
 
     @classmethod
-    def load_from_yml(cls, yml_filename: str) -> Config:
-        dic = utils.load_yml_file(yml_filename=yml_filename)
+    def load_conman_config_file(
+        cls, filename: Path = ".conman-config.yml"
+    ) -> None:
+        dic = utils.load_yml_file(yml_filename=filename)
         return cls.from_dic(dic)
 
-    def build_extra_attr(self):
-        pass
+    def dump_conman_config_file(
+        self, filename: Path = ".conman-config.yml"
+    ) -> None:
 
-    def check_config_file(self):
-        print("Checking config file ...")
-        checks = [self.check_image(), self.check_volumes(), self.check_conda()]
-        for c in checks:
-            self.status_error = c
-            if c == 1:
-                return c
-        return 0
+        data = Config.remove_private_attributes(self.copy())
+        stream = yaml.dump(
+            data,
+            default_flow_style=False,
+            sort_keys=False,
+            indent=4,
+        )
 
-    def check_image(self):
-        if self.user_image.basename == "your_image_name:your_image_tag":
-            print("Error: basename is not valid")
-            print(f"\t=> Current name is <{self.user_image.basename}>")
-            return 1
+        # Prettify the config file
+        config_msg = (
+            "# Conman Configuration File\n"
+            + "# Please take your time and carefully complete this file.\n"
+            + "# < Authored by: C. Elmo and L. Charleux >\n"
+        )
+
+        stream = config_msg + stream
+        prim_attrs = [key for key in config.__dataclass_fields__]
+        for attr in prim_attrs:
+            stream = stream.replace(
+                f"\n{attr}:\n",
+                f"\n\n# {attr.capitalize()} Settings\n{attr}:\n",
+            )
+
+        # Actually write the file
+        with open(filename, "w") as f:
+            f.write(stream)
+
+    def copy(self) -> Config:
+        return copy.deepcopy(self)
+
+    @staticmethod
+    def remove_private_attributes(obj) -> None:
+        attributes = obj.__dict__
+        private_attributes = []
+        for attr, value in attributes.items():
+            if attr.startswith("__private_"):
+                private_attributes.append(attr)
+            elif hasattr(value, "__dict__"):
+                Config.remove_private_attributes(value)
+
+        for attr in private_attributes:
+            delattr(obj, attr)
+
+        return obj
+
+    @staticmethod
+    def remove_empty_attributes(obj):
+        # Get all attributes of the object
+        attributes = obj.__dict__
+
+        # Iterate through attributes and remove empty ones
+        empty_attributes = []
+        for attr, value in attributes.items():
+            if isinstance(value, (list, dict)):
+                # Case where the attribute is a list or a dictionary
+                if not value:
+                    empty_attributes.append(attr)
+            elif hasattr(value, "__dict__"):
+                # Case where the attribute is an instance of a class
+                Config.remove_empty_attributes(value)
+                if not value.__dict__:
+                    empty_attributes.append(attr)
+            elif not value:
+                # General case where the attribute is empty
+                empty_attributes.append(attr)
+
+        # Remove empty attributes from the object
+        for attr in empty_attributes:
+            delattr(obj, attr)
+
+    def run_building(self) -> None:
+        self.wdir = os.getcwd() + "/"
+        self.build_devcontainer()
+        self.build_dockercompose_file()
+        self.build_dockerfile_user()
+        self.build_dockerfile_root()
+
+    def build_devcontainer(self) -> None:
+        if config.container.devcontainer.enabled:
+            self.wdir += ".devcontainer/"
+            # make directory .devcontainer if not exists
+            if not os.path.isdir(".devcontainer"):
+                os.mkdir(".devcontainer")
+                print("Directory .devcontainer created")
+
+            self.build_devcontainer_json()
+
+    def build_devcontainer_json(self) -> None:
+        # create devcontainer.json file
+        if not os.path.isfile(".devcontainer/devcontainer.json"):
+            print("Creating devcontainer.json file...")
+            self.container.devcontainer.to_devcontainer_json()
+            print("devcontainer.json file created")
         else:
-            print(f"basename = {self.user_image.basename}")
-            return 0
+            print("devcontainer.json file already exists")
 
-    def check_volumes(self):
-        # Check volumes
-        if not self.volumes:
-            print("Warning: no volumes specified")
-            return 2
+    def build_dockercompose_file(self) -> None:
+        # create docker-compose.yml file
+        if not os.path.isfile("docker-compose.yml"):
+            print("Creating docker-compose.yml file...")
+            self.container.__private_compose__.to_docker_compose(
+                filename=f"{self.wdir}docker-compose.yml"
+            )
+            print(f"{self.wdir}docker-compose.yml file created")
         else:
-            # Print volumes
-            print("volumes:")
-            for volume in self.volumes:
-                print(f" - {volume}")
-            return 0
+            print(f"{self.wdir}docker-compose.yml file already exists")
 
-    def check_conda(self):
-        print(f"conda direcotry = {self.root_image.conda.directory}")
-        print(f"conda env name = {self.root_image.conda.env_name}")
-        return 0
+    def build_dockerfile_user(self) -> None:
+        # create Dockerfile.user file
+        if not os.path.isfile("Dockerfile.user"):
+            print("Creating Dockerfile.user file...")
+            self.images.user.to_dockerfile(
+                filename=f"{self.wdir}Dockerfile.user"
+            )
+            print(f"{self.wdir}Dockerfile.user file created")
+        else:
+            print(f"{self.wdir}Dockerfile.user file already exists")
 
-    def run_config(self):
-        return None
-
-
-def replace_data_in_template(template_filename, data):
-    template_path = utils.get_template_file_path(template_filename)
-    dct = Template(open(template_path).read().strip()).substitute(data)
-    dct = dct.strip()
-    return dct
-
-
-def install_devcontainer(config):
-    # make directory .devcontainer if not exists
-    if not os.path.isdir(".devcontainer"):
-        os.mkdir(".devcontainer")
-        print("Directory .devcontainer created")
-
-    data = {
-        "CONTAINER_NAME": config.container.devcontainer.name,
-        "MAIN_SERVICE_NAME": config.container.main_service.name,
-    }
-
-    # read template file empty_template_devcontainer.json from templates directory
-    template_filename = "empty_template_devcontainer.json"
-    dct = replace_data_in_template(template_filename, data)
-    open(".devcontainer/devcontainer.json", "w").write(dct)
-
-
-def x_access():
-    # Give access to X11
-    print("Executing xhost +local: ...")
-    os.system("xhost +local:")
-
-
-def manage_conda_env_file(
-    envfile,
-    conda_env_name,
-    pip_packages=["scipy", "opencv-python", "opencv-contrib-python"],
-    conda_packages=["python=3.8", "pip", "numpy"],
-    channels=["conda-forge", "anaconda", "defaults"],
-):
-    """_summary_
-    Manage conda environment.yml file
-    if file exists do nothing else create an empty file
-    Args:
-        envfile (str): environment.yml file path
-    """
-
-    if not os.path.isfile(envfile):
-        print(f"Creating conda env file at: \t{envfile}")
-        open(envfile, "w").write("name: " + conda_env_name + "\n")
-        open(envfile, "a").write("channels: \n")
-        for channel in channels:
-            open(envfile, "a").write("  - " + channel + "\n")
-        open(envfile, "a").write("dependencies: \n")
-        for conda_package in conda_packages:
-            open(envfile, "a").write("  - " + conda_package + "\n")
-        open(envfile, "a").write("  - pip: \n")
-        for pip_package in pip_packages:
-            open(envfile, "a").write("    - " + pip_package + "\n")
-    else:
-        print(f"Conda env file exists at: \t{envfile}")
-
-
-def install_docker_compose(config):
-    docker_compose = rsrc.docker_compose.DockerCompose(
-        compose_img_name=config.container.name
-    )
-    docker_compose.add_service(
-        f"{config.container.main_service.name}",
-        container_name=f"{config.container.main_service.container_name}",
-    )
-
-    current_service = getattr(
-        docker_compose.services, f"{config.container.main_service.name}"
-    )
-
-    if config.gpu.enabled and config.gpu.manufacturer == "nvidia":
-        current_service.deploy.activate_gpu(
-            driver=f"{config.gpu.manufacturer}", count=f"{config.gpu.count}"
-        )
-    else:
-        del current_service.deploy
-
-    if config.graphical.enabled and config.graphical.protocol == "x11":
-        current_service.activate_display()
-        x_access()
-
-    # Add Base image
-    current_service.build.add_arg(
-        arg_name="BASE_IMAGE", arg_value=config.root_image.basename
-    )
-
-    # Add conda configuration
-    current_service.build.add_arg(
-        arg_name="CONDA_ENV_NAME", arg_value=config.root_image.conda.env_name
-    )
-    current_service.build.add_arg(
-        arg_name="CONDA_DIRECTORY", arg_value=config.root_image.conda.directory
-    )
-
-    # Appends volumes
-    current_service.volumes += config.volumes
-
-    # Dump docker-compose.yml
-    wdir = os.getcwd() + "/"
-    if config.container.devcontainer.enabled:
-        install_devcontainer(config)
-        wdir += ".devcontainer/"
-
-    docker_compose.export(file_path=wdir + "docker-compose.yml")
-
-    return 0
-
-
-def install_dockerfile_user(config):
-    dockerfile = rsrc.docker_file.DockerFile()
-    dockerfile.add("ARG", "BASE_IMAGE", comments="ARG BASE_IMAGE")
-    dockerfile.add("FROM", "${BASE_IMAGE}", comments="FROM ${BASE_IMAGE}")
-    if config.graphical.enabled and config.graphical.protocol == "x11":
-        dockerfile.add(
-            "ARG",
-            ["USER_NAME", "USER_UID", "USER_GID", "CONDA_ENV_NAME", "DISPLAY"],
-            comments="ARGS",
-        )
-        dockerfile.add(
-            "ENV",
-            [
-                "USER_NAME=${USER_NAME}",
-                "USER_GID=${USER_GID}",
-                "USER_UID=${USER_UID}",
-                "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
-                "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
-                "DISPLAY=${DISPLAY}",
-            ],
-        )
-
-        dockerfile.add(
-            "RUN",
-            "apt-get update \\ \n && apt-get install -y sudo x11-apps xauth",
-        )
-
-    else:
-        dockerfile.add(
-            "ARG",
-            ["USER_NAME", "USER_UID", "USER_GID", "CONDA_ENV_NAME"],
-            comments="ARGS",
-        )
-        dockerfile.add(
-            "ENV",
-            [
-                "USER_NAME=${USER_NAME}",
-                "USER_GID=${USER_GID}",
-                "USER_UID=${USER_UID}",
-                "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
-                "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
-            ],
-            comments="ENV VARIABLES",
-        )
-
-    dockerfile.add(
-        "RUN",
-        [
-            f"mkdir -p /etc/sudoers.d",
-            f"groupadd --gid $USER_GID $USER_NAME \\ \n    && useradd --uid $USER_UID --gid $USER_GID -m $USER_NAME",
-            f"echo $USER_NAME ALL=\\(root\\) NOPASSWD:ALL > /etc/sudoers.d/$USER_NAME \\ \n   && chmod 0440 /etc/sudoers.d/$USER_NAME",
-            "usermod -a -G root ${USER_NAME}",
-        ],
-        comments="USER CREATION",
-    )
-    dockerfile.add(
-        "USER", f"${{USER_UID}}:${{USER_GID}}", comments="Log as $USER"
-    )
-
-    dockerfile.add(
-        "RUN",
-        ["conda init", 'echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc'],
-        comments="Intialize conda and activate conda environment",
-    )
-
-    # Adding extra instructions if any
-    if config.user_image.extra_instructions:
-        print("Extra instructions found. Adding them to Dockerfile")
-        for ind, instruction in enumerate(
-            config.user_image.extra_instructions
-        ):
-            print(f"Adding: \t{instruction}")
-            if ind == 0:
-                dockerfile.add_line(
-                    instruction, comments="----Extra instructions----"
+    def build_dockerfile_root(self) -> None:
+        # create Dockerfile.root file
+        if self.images.root.generate:
+            if not os.path.isfile("Dockerfile.root"):
+                print("Creating Dockerfile.root file...")
+                self.images.root.to_dockerfile(
+                    filename=f"{self.wdir}Dockerfile.root"
                 )
+                print(f"{self.wdir}Dockerfile.root file created")
             else:
-                dockerfile.add_line(instruction)
-
-    # Dump Dockerfile
-    wdir = os.getcwd() + "/"
-    if config.container.devcontainer.enabled:
-        install_devcontainer(config)
-        wdir += ".devcontainer/"
-
-    dockerfile.closing_file().generate(wdir + "Dockerfile-user")
-
-
-def install_dockerfile_root(config):
-    wdir = os.getcwd() + "/"
-    # Create a Dockerfile object
-    dockerfile = rsrc.docker_file.DockerFile()
-
-    debian_os = ["debian", "ubuntu"]
-    if config.root_image.from_image.name not in debian_os:
-        raise Exception(
-            f"Image {config.root_image.from_image.name} not supported yet.\nSupported images are: {debian_os}"
-        )
-
-    dockerfile.add(
-        "FROM",
-        f"{config.root_image.from_image.basename}",
-        comments="Source image",
-    )
-
-    # Set Debian frontend to noninteractive
-    dockerfile.add("ENV", 'DEBIAN_FRONTEND="noninteractive" TZ="Europe/Paris"')
-
-    # Add basics libraries
-    dockerfile.add("RUN", "apt-get update", comments="Updating apt cache")
-
-    dockerfile.add(
-        "RUN",
-        "apt-get install -y build-essential cmake libncurses5-dev libncursesw5-dev libv4l-dev libxcursor-dev libxcomposite-dev libxdamage-dev libxrandr-dev libxtst-dev libxss-dev libdbus-1-dev libevent-dev libfontconfig1-dev libcap-dev libpulse-dev libudev-dev libpci-dev libnss3-dev libasound2-dev libegl1-mesa-dev",
-        comments="Development Tools and Libraries",
-    )
-
-    dockerfile.add(
-        "RUN", "apt-get install -y ffmpeg", comments="Multimedia libraries"
-    )
-
-    dockerfile.add(
-        "RUN",
-        "apt-get update && apt-get install -y x11-apps xauth",
-        comments="X11 libraries",
-    )
-
-    dockerfile.add(
-        "RUN",
-        "apt-get install -y git wget sudo gperf bison nodejs htop",
-        comments="Other libraries",
-    )
-
-    dockerfile.add(
-        "RUN",
-        [
-            "apt install locales",
-            "locale-gen en_US.UTF-8",
-            "dpkg-reconfigure locales",
-        ],
-        comments="Locales update",
-    )
-
-    dockerfile.add("RUN", "apt-get clean", comments="Cleaning apt cache")
-
-    # Conda settings and installation
-    if config.root_image.conda.enabled:
-        conda_directory = config.root_image.conda.directory
-        conda_env_name = config.root_image.conda.env_name
-        environment_file = config.root_image.conda.environment_file
-        # Add conda arguments
-        dockerfile.add(
-            "ARG",
-            [
-                f"CONDA_DIRECTORY={conda_directory}",
-                f"CONDA_ENV_NAME={conda_env_name}",
-            ],
-            comments="CONDA ARGS",
-        )
-
-        # Define conda environment variables
-        dockerfile.add(
-            "ENV",
-            [
-                "CONDA_DIRECTORY $CONDA_DIRECTORY",
-                "CONDA_ENV_NAME $CONDA_ENV_NAME",
-                "CONDA_BIN_PATH $CONDA_DIRECTORY/condabin/conda",
-                "CONDA_ENV_BIN_PATH $CONDA_DIRECTORY/envs/$CONDA_ENV_NAME/bin",
-                "CONDA_ENV_PATH $CONDA_DIRECTORY/envs/$CONDA_ENV_NAME",
-            ],
-            comments="Conda environment variables",
-        )
-
-        # Add conda executable to PATH
-
-        dockerfile.add(
-            "ENV",
-            "PATH $CONDA_DIRECTORY/condabin/:$PATH",
-            comments="Add conda executable to PATH",
-        )
-
-        # Setting umask to 0000
-
-        dockerfile.add(
-            "RUN",
-            [
-                'line_num=$(cat /etc/pam.d/common-session | grep -n umask | cut -d: -f1 | tail -1) && \ \n\tsed -i "${line_num}s/.*/session optional pam_umask.so umask=000/" /etc/pam.d/common-session',
-                'line_num=$(cat /etc/login.defs | grep -n UMASK | cut -d: -f1 | tail -1) && \ \n\tsed -i "${line_num}s/.*/UMASK               000/" /etc/pam.d/common-session',
-                "echo 'umask 000' >> ~/.profile",
-            ],
-            comments="Setting umask",
-        )
-
-        # Installing miniconda
-        dockerfile.add(
-            "RUN",
-            "umask 000 && \ \n\tmkdir -p ${CONDA_DIRECTORY} && \ \n\tchmod 777 ${CONDA_DIRECTORY} && \ \n\twget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \ \n\tbin/bash ~/miniconda.sh -ub -p $CONDA_DIRECTORY && \ \n\trm ~/miniconda.sh",
-            comments="Installing miniconda",
-        )
-
-        manage_conda_env_file(environment_file, conda_env_name)
-
-        dockerfile.add(
-            ["COPY", "RUN"],
-            [
-                f"{environment_file} /tmp/environment.yml",
-                "umask 000 && \ \n\tconda update -n base conda && \ \n\tconda create -y -n $CONDA_ENV_NAME && \ \n\tconda env update --name $CONDA_ENV_NAME --file /tmp/environment.yml --prune ",
-            ],
-            comments="Conda env creation",
-        )
-
-        dockerfile.add(
-            "RUN",
-            [
-                'echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc',
-                'echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc',
-            ],
-            comments="Conda env activation for root user",
-        )
-
-    # Adding extra instructions if any
-    if config.root_image.extra_instructions:
-        print("Extra instructions found. Adding them to Dockerfile")
-        for ind, instruction in enumerate(
-            config.root_image.extra_instructions
-        ):
-            print(f"Adding: \t{instruction}")
-            if ind == 0:
-                dockerfile.add_line(
-                    instruction, comments="----Extra instructions----"
-                )
-            else:
-                dockerfile.add_line(instruction)
-
-    # Dump Dockerfile
-    dockerfile.closing_file().generate(wdir + "Dockerfile")
-
-
-def build(debug=False):
-    config_filename = CONFIG_FILE
-    if debug:
-        config_filename = utils.get_tests_dir() + config_filename
-
-    config = Config.load_from_yml(yml_filename=config_filename)
-
-    install_docker_compose(config)
-    install_dockerfile_user(config)
-
-    if config.root_image.generate:
-        install_dockerfile_root(config)
-
-    return config
+                print(f"{self.wdir}Dockerfile.root file already exists")
 
 
 if __name__ == "__main__":
-    temp = install(debug=True)
+
+    config_file = "../templates/empty_template_.conman-config.yml"
+    # config_file = "./test.yml"
+    config = Config().load_conman_config_file(filename=config_file)
+    # print(config.container.gpu.count)
+    # config = Config()
+    config.dump_conman_config_file(filename="test.yml")
