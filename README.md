@@ -11,7 +11,7 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 
 - Unix (Linux, macOS) based operating system (WSL workaround for Windows)
 - Docker and Docker-compose
-- Python 3.6+
+- Python 3.8+
 - Python modules :
     - pip 21.0.1+ (Need setuptools integration)
 
@@ -25,7 +25,7 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
     pip install git+https://github.com/elmokulc/conman.git@<branch_name>
     ```
 
-    **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current most advanced branch is `dev`.
+    **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current most advanced branch is `0.0.2`.
 
 ---
 
@@ -58,60 +58,60 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 As example:
 
 ```yml 
-root_image:
-    generate: true
-    name: "my_root_img"
-    tag: "0.1"
-    from_image: 
-        name: "ubuntu"
-        tag: "20.04"
-    conda:
-        enabled: true
-        directory: "/opt/conda"
-        env_name: "myenv"
-        environment_file: "./environment.yml"
-    extra_instructions: 
-        - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
+# Images Settings
+images:
+    root:
+        generate: false
+        name: root_img_name
+        tag: root_img_tag
+        from_image:
+            name: ubuntu
+            tag: '20.04'
+        conda_environment:
+            enabled: true
+            directory: /opt/conda
+            env_name: myenv
+            environment_file: ./environment.yml
+        extra_instructions: 
+            - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
+    user:
+        extra_instructions:
+            - "RUN sudo mkdir -p /python_modules"
+            - "RUN sudo chown -R $USER:$USER /python_modules"
+            - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
 
-user_image:
-    name: "my_user_img"
-    tag: "0.1"
-    extra_instructions: 
-        - "RUN sudo mkdir -p /python_modules"
-        - "RUN sudo chown -R $USER:$USER /python_modules"
-        - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
+# User_settings Settings
+user_settings:
+    volumes: 
+        - ..:/workspace
+        - path_module1/module1:/python_modules/module1
+        - path_module2/module2:/python_modules/module2
 
-volumes:
-    - .:/workspace
-    - path_module1/module1:/python_modules/module1
-    - path_module2/module2:/python_modules/module2
-
-graphical:
-    enabled: true
-    protocol: "x11"
-
-gpu:
-    enabled: true
-    manufacturer: "nvidia"
-    count: 1
-
+# Container Settings
 container:
-    name: "compose_img_name"
+    name: compose_img_name
     main_service:
-        name: "main_container"
-        container_name: "your_container_name"
+        name: main_container
+        container_name: container_stack_name
     devcontainer:
         enabled: true
-        name: "your_devcontainer_name"
-        extensions:
+        name: devcontainer_name
+        extensions: 
             - "ms-python.python"
             - "ms-python.vscode-pylance"
+    graphical:
+        enabled: false
+        protocol: x11
+    gpu:
+        enabled: false
+        manufacturer: nvidia
+        count: 1
 ```
 
 - By running: 
     
     ```bash
-    conman install
+    conman build
     ```
 
     Conman will generate a `docker-compose.yml` file and a `Dockerfile-user`, enventually: a `.devcontainer` directory within a `devcontainer.json` file, a `Dockerfile` and a conda `environment.yml` file, all of this according to your configuration file: `.conman-config.yml` .
@@ -119,7 +119,7 @@ container:
     Here is an example of the output from the previous configuration file:
 
     ```console
-    $ ➜ ~/my_project $ conman install
+    $ ➜ ~/my_project $ conman build
     Checking config file ...
     base_name = ubuntu:20.04
     volumes:
@@ -190,13 +190,13 @@ You may need to update your `$PATH` variable.
     You can then add the following line to your `.bashrc` or `.zshrc` file:
 
     ```bash
-    export PATH=$PATH://home/<username>/.local/bin
+    export PATH=$PATH://home/$USER/.local/bin
     ```
 
     or by running:
 
     ```bash
-    echo 'export PATH=$PATH:/home/<username>/.local/bin' >> ~/.bashrc
+    echo 'export PATH=$PATH:/home/'$USER'/.local/bin' >> ~/.bashrc
     ```
 
 
