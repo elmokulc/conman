@@ -10,12 +10,13 @@ import conman.ressources as rsrc
 from conman.constants import *
 import yaml
 from dataclasses import dataclass, field
+from conman.ressources.devcontainer import DevContainer
 
 
 @asi
 @dataclass
 class CondaEnvironment(Builder):
-    enabled: bool = True
+
     directory: Path = "/opt/conda"
     env_name: str = "myenv"
     environment_file: Path = "./environment.yml"
@@ -156,17 +157,19 @@ class Compose:
         ...
 
 
-@asi
-@dataclass
-class DevContainer(Builder):
-    enabled: bool = True
-    name: str = "devcontainer_name"
-    extensions: List[str] = field(default_factory=lambda: ["ms-python.python"])
+# @asi
+# @dataclass
+# class DevContainer(Builder):
 
-    def to_devcontainer_json(self, filename="devcontainer.json") -> None:
-        dev = rsrc.devcontainer.DevContainer(name=self.name)
-        dev.customizations.vscode.extensions = self.extensions
-        dev.dump_to_json(filename=filename)
+#     name: str = "devcontainer_name"
+#     extensions: List[str] = field(default_factory=lambda: ["ms-python.python"])
+#     dockerComposeFile: str = str(Path("/.docker-compose.yml"))
+#     __private_devcontainer__: rsrc.devcontainer.DevContainer() = rsrc.devcontainer.DevContainer()
+
+
+#     def to_devcontainer_json(self, filename="devcontainer.json") -> None:
+#         self.__private_devcontainer__.__dict__.update(self.__dict__)
+#         self.__private_devcontainer__.dump_to_json(filename=filename, empty=True, none=False)
 
 
 @asi
@@ -284,7 +287,7 @@ class Config(Builder):
         self.build_dockerfile_root()
 
     def build_devcontainer(self) -> None:
-        if config.container.devcontainer.enabled:
+        if hasattr(config.container, "devcontainer"):
             self.wdir += ".devcontainer/"
             # make directory .devcontainer if not exists
             if not os.path.isdir(".devcontainer"):
@@ -343,10 +346,10 @@ def build():
 
 
 if __name__ == "__main__":
-    config_file = "../templates/empty_template_.conman-config.yml"
+    config_file = "test_in.yml"
     # config_file = "./test.yml"
     config = Config().load_conman_config_file(filename=config_file)
     # print(config.container.gpu.count)
     # config = Config()
-    config.dump_conman_config_file(filename="test.yml")
-    # config.container.devcontainer.to_devcontainer_json()
+    config.dump_conman_config_file(filename="test_out.yml")
+    config.container.devcontainer.dump_devcontainerjson_file()

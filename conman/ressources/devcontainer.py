@@ -8,18 +8,18 @@ from conman.io import asi, Builder
 @dataclass
 class VSCode(Builder):
     settings: Dict[str, Any] = field(default_factory=lambda: {})
-
-
-@asi
-@dataclass
-class Customizations(Builder):
-    vscode: VSCode = field(default_factory=VSCode)
     extensions: List[str] = field(
         default_factory=lambda: [
             "ms-python.python",
             "ms-python.vscode-pylance",
         ]
     )
+
+
+@asi
+@dataclass
+class Customizations(Builder):
+    vscode: VSCode = field(default_factory=VSCode)
 
 
 @asi
@@ -46,7 +46,7 @@ class DevContainer(Builder):
     )
 
     def dump_devcontainerjson_file(self, filename: str = "devcontainer.json"):
-        self.dump_to_json(filename)
+        self.dump_to_json(filename, empty=True, none=True)
 
 
 if __name__ == "__main__":

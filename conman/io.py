@@ -53,10 +53,10 @@ class Builder:
 
         for key, value in dic.items():
             if (
-                hasattr(cls, "__private_class_lib__")
-                and key in cls.__private_class_lib__
+                hasattr(cls(), "__private_class_lib__")
+                and key in cls().__private_class_lib__
             ):
-                _class = cls.__private_class_lib__[key]
+                _class = cls().__private_class_lib__[key]
                 # _class = _class()
                 # print(cls)
                 # print(_class.__private_class_lib__)
@@ -67,8 +67,8 @@ class Builder:
                 _class = Builder
 
                 # Use ipython debugger
-            # print(key)
-            # import ipdb; ipdb.set_trace()
+                # print(key)
+                # import ipdb; ipdb.set_trace()
             # sub_classes = set(value) or set(cls.__private_class_lib__)
 
             if value.__class__ == dict:
@@ -149,9 +149,19 @@ class Builder:
     @staticmethod
     def remove_none_attributes(obj):
         attributes = dict(obj.__dict__)
+        none_attributes = []
         for key, value in attributes.items():
             if value is None:
-                delattr(obj, key)
+                none_attributes.append(key)
+
+            elif hasattr(value, "__dict__"):
+                obj.remove_none_attributes(value)
+                if not value.__dict__:
+                    none_attributes.append(key)
+
+        for attr in none_attributes:
+            delattr(obj, attr)
+
         return obj
 
     @classmethod
@@ -171,7 +181,6 @@ class Builder:
 
         return cls.from_dic(dic)
 
-    # @classmethod
     def dump_to_yml(self, filename: Path, preambule="") -> None:
         """
         Dumps the configuration to a YAML file.
@@ -184,7 +193,7 @@ class Builder:
         """
         # Clean attributes before dumping
 
-        data = self.removing_attr(empty=False, none=False)
+        data = self.removing_attr(empty=False, none=True)
 
         # with open(filename, "w") as file:
         #     yaml.dump(data, file, default_flow_style=False)
@@ -211,8 +220,7 @@ class Builder:
     def copy(self) -> Any:
         return copy.deepcopy(self)
 
-    @classmethod
-    def dump_to_json(cls, filename: Path) -> None:
+    def dump_to_json(self, filename: Path, **kwargs) -> None:
         """
         Dumps the configuration to a JSON file.
 
@@ -224,7 +232,7 @@ class Builder:
         """
 
         # Clean attributes before dumping
-        data = cls.removing_attr()
+        data = self.removing_attr(**kwargs)
 
         # Intermediate yml representation
         stream = yaml.dump(
@@ -238,7 +246,7 @@ class Builder:
         with open(filename, "w") as json_file:
             json.dump(yaml_data, json_file, indent=4)
 
-    def removing_attr(self, private=True, empty=True, none=True):
+    def removing_attr(self, private=True, empty=False, none=False, **kwargs):
         data = self.copy()
         if private:
             data = self.remove_private_attributes(data)
