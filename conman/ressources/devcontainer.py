@@ -35,8 +35,8 @@ class DevContainer(Builder):
     customizations: Customizations = field(default_factory=Customizations)
     postCreateCommand: str = "echo 'Post create command...'"
     postStartCommand: str = "echo 'Post start command...'"
-    image: Optional[str] = None
-    features: Optional[Dict[str, Dict[str, Any]]] = None
+    # image: Optional[str] = None
+    # features: Optional[Dict[str, Dict[str, Any]]] = None
 
     __private_class_lib__: Dict = field(
         default_factory=lambda: {

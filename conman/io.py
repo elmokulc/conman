@@ -181,7 +181,7 @@ class Builder:
 
         return cls.from_dic(dic)
 
-    def dump_to_yml(self, filename: Path, preambule="") -> None:
+    def dump_to_yml(self, filename: Path, preambule="", **kwargs) -> None:
         """
         Dumps the configuration to a YAML file.
 
@@ -193,10 +193,7 @@ class Builder:
         """
         # Clean attributes before dumping
 
-        data = self.removing_attr(empty=False, none=True)
-
-        # with open(filename, "w") as file:
-        #     yaml.dump(data, file, default_flow_style=False)
+        data = self.removing_attr(**kwargs)
 
         stream = yaml.dump(
             data,
@@ -255,3 +252,6 @@ class Builder:
         if none:
             data = self.remove_none_attributes(data)
         return data
+
+    def add_field(self, field_name, field_value):
+        setattr(self, field_name, field_value)

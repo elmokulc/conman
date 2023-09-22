@@ -1,6 +1,9 @@
 import yaml
 import platform
 import os
+from conman.io import asi, Builder
+from dataclasses import dataclass, field
+from typing import List, Dict, Any
 
 
 def get_user_id_data():
@@ -42,167 +45,23 @@ def get_display():
         return "host.docker.internal:0"
 
 
-def asi(subclass):
-    """
-    A decorator function that adds support for automatic super() initialization to a subclass.
-
-    Args:
-        subclass (class): The subclass to decorate.
-
-    Returns:
-        class: The decorated subclass.
-    """
-
-    original_init = subclass.__init__
-
-    def new_init(self, *args, **kwargs):
-        """
-        Custom initialization method that automatically calls super().__init__().
-
-        Args:
-            *args: Variable length argument list.
-            **kwargs: Arbitrary keyword arguments.
-
-        Returns:
-            None
-        """
-
-        super(subclass, self).__init__(*args, **kwargs)
-        original_init(self, *args, **kwargs)
-
-    subclass.__init__ = new_init
-    return subclass
-
-
-class Field:
-    """
-    A class representing a field.
-
-    Attributes:
-        N/A
-
-    Methods:
-        __init__(self, **kwargs)
-            Initializes a new instance of the Field class.
-
-        __repr__(self) -> str
-            Returns a string representation of the Field object.
-
-        add_field(self, field, value)
-            Adds a new field with the specified value to the Field object.
-
-        field_representer(dumper, data)
-            A static method used as a custom YAML representer for Field objects.
-
-        register_repr(self)
-            Registers the field_representer as a representer for the Field class in YAML.
-    """
-
-    def __init__(self, **kwargs):
-        """
-        Initializes a new instance of the Field class.
-
-        Args:
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            None
-        """
-
-        self.register_repr()
-
-    def __repr__(self) -> str:
-        """
-        Returns a string representation of the Field object.
-
-        Returns:
-            str: The string representation of the Field object.
-        """
-
-        return self.__dict__.__repr__()
-
-    def add_field(self, field, value):
-        """
-        Adds a new field with the specified value to the Field object.
-
-        Args:
-            field (str): The name of the field to add.
-            value (Any): The value of the field.
-
-        Returns:
-            None
-        """
-
-        self.__dict__[field] = value
-
-    @staticmethod
-    def field_representer(dumper, data):
-        """
-        A static method used as a custom YAML representer for Field objects.
-
-        Args:
-            dumper (yaml.Dumper): The YAML dumper object.
-            data (Field): The Field object to represent.
-
-        Returns:
-            Any: The YAML representation of the Field object.
-        """
-
-        return dumper.represent_dict(data.__dict__)
-
-    def register_repr(self):
-        """
-        Registers the field_representer as a representer for the Field class in YAML.
-
-        Returns:
-            None
-        """
-
-        yaml.add_representer(self.__class__, Field.field_representer)
+@asi
+@dataclass
+class DockerCompose(Builder):
+    container_name: str = "ContainerNameDockerCompose"
+    service_name: str = "main_service_name"
+    pass
 
 
 @asi
-class DockerCompose(Field):
-    """
-    A class representing a Docker Compose configuration.
-
-    Inherits from:
-        Field: A class representing a field.
-
-    Attributes:
-        services (Field): The services defined in the Docker Compose configuration.
-
-    Methods:
-        __init__(self)
-            Initializes a new instance of the DockerCompose class.
-
-        add_service(self, service_name, **kwargs)
-            Adds a new service to the DockerCompose object.
-
-        to_yaml(self, version="3.9")
-            Converts the DockerCompose object to a YAML string.
-
-        export(self, file_path="docker-compose.yml")
-            Exports the DockerCompose object to a YAML file.
-
-    """
-
-    def __init__(self, compose_img_name, version="3.9"):
-        """
-        Initializes a new instance of the DockerCompose class.
-        Args:
-            compose_img_name (str): The name of the image created via docker compose.
-        Returns:
-            None
-        """
-
-        self.services = Field()
-        self.name = compose_img_name
-        self.version = version
+@dataclass
+class DockerComposeFile(Builder):
+    version: str = "3.9"
+    services: Builder = Builder()
 
     def add_service(self, service_name, **kwargs):
         """
-        Adds a new service to the DockerCompose object.
+        Adds a new service to the DockerComposeFile object.
 
         Args:
             service_name (str): The name of the service.
@@ -215,102 +74,20 @@ class DockerCompose(Field):
         service = Service(**kwargs)
         self.services.add_field(service_name, service)
 
-    def to_yaml(self):
+    def get_service(self, service_name: str):
         """
-        Converts the DockerCompose object to a YAML string.
+        Retrieves the services associated with the DockerComposeFile object.
 
         Returns:
-            str: The YAML representation of the DockerCompose object.
+            list: The list of services.
         """
 
-        return yaml.dump(self.__dict__, default_flow_style=False)
-
-    def export(self, file_path="docker-compose.yml"):
-        """
-        Exports the DockerCompose object to a YAML file.
-
-        Args:
-            file_path (str): The path to the output YAML file.
-
-        Returns:
-            None
-        """
-
-        with open(file_path, "w") as f:
-            f.write(self.to_yaml())
+        return getattr(self.services, service_name)
 
 
 @asi
-class Service(Field):
-    """
-    A class representing a service in a Docker Compose configuration.
-
-    Inherits from:
-        Field: A class representing a field.
-
-    Attributes:
-        build (Build): The build configuration for the service.
-        deploy (Deploy): The deployment configuration for the service.
-        container_name (str): The name of the container.
-        volumes (list): The volumes associated with the service.
-
-    Methods:
-        __init__(self, container_name="", volumes=[], **kwargs)
-            Initializes a new instance of the Service class.
-
-        activate_display(self)
-            Activates the display configuration.
-
-        extra_volumes_display(self)
-            Adds extra volumes required for display configuration.
-    """
-
-    def __init__(self, container_name="", volumes=[], **kwargs):
-        """
-        Initializes a new instance of the Service class.
-
-        Args:
-            container_name (str): The name of the container.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            None
-        """
-
-        self.build = Build()
-        self.deploy = Deploy()
-        self.container_name = container_name
-        self.volumes = volumes
-
-    def activate_display(self):
-        """
-        Activates the display configuration.
-
-        Returns:
-            None
-        """
-
-        self.build.get_display()
-        self.extra_volumes_display()
-        self.privileged = True
-        self.network_mode = "host"
-
-    def extra_volumes_display(self):
-        """
-        Adds extra volumes required for display configuration.
-
-        Returns:
-            None
-        """
-
-        self.volumes += [
-            "/tmp/.X11-unix:/tmp/.X11-unix:rw",
-            f"/home/{get_user_id_data()['USER_NAME']}/.Xauthority:/home/{get_user_id_data()['USER_NAME']}/.Xauthority:rw",
-        ]
-
-
-@asi
-class Build(Field):
+@dataclass
+class Build(Builder):
     """
     A class representing the build configuration for a service in a Docker Compose configuration.
 
@@ -339,26 +116,11 @@ class Build(Field):
             Activates the display configuration.
     """
 
-    def __init__(
-        self, dockerfile="./Dockerfile-user", args=[], context=".", **kwargs
-    ):
-        """
-        Initializes a new instance of the Build class.
+    dockerfile: str = "./Dockerfile-user"
+    context: str = "."
+    args: List[str] = field(default_factory=lambda: [])
 
-        Args:
-            dockerfile (str): The path to the Dockerfile.
-            args (list): Additional arguments for the build process.
-            context (str): The build context.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            None
-        """
-
-        self.args = args
-        self.context = context
-        self.dockerfile = dockerfile
-
+    def __post_init__(self):
         self.get_user_specific_args()
 
     def get_user_specific_args(self):
@@ -403,38 +165,12 @@ class Build(Field):
 
 
 @asi
-class Deploy(Field):
-    """
-    A class representing the deployment configuration for a service in a Docker Compose configuration.
+@dataclass
+class Deploy(Builder):
+    resources: Builder = Builder()
 
-    Inherits from:
-        Field: A class representing a field.
-
-    Attributes:
-        resources (Field): The resource configuration for the deployment.
-
-    Methods:
-        __init__(self, **kwargs)
-            Initializes a new instance of the Deploy class.
-
-        activate_gpu(self, driver="nvidia", count=1, capabilities=["gpu"])
-            Activates GPU support for the deployment.
-
-    """
-
-    def __init__(self, **kwargs):
-        """
-        Initializes a new instance of the Deploy class.
-
-        Args:
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            None
-        """
-
-        self.resources = Field()
-        self.resources.add_field("reservations", Field())
+    def __post_init__(self):
+        self.resources.add_field("reservations", Builder())
 
     def activate_gpu(
         self, driver="nvidia", count: int = 1, capabilities=["gpu"]
@@ -463,20 +199,83 @@ class Deploy(Field):
         )
 
 
-if __name__ == "__main__":
-    # Create DockerCompose instance
-    docker_compose = DockerCompose()
+@asi
+@dataclass
+class Service(Builder):
+    build: Build = Build()
+    deploy: Deploy = Deploy()
+    container_name: str = ""
+    volumes: List[str] = field(default_factory=lambda: [])
+    __private_class_lib__: Dict = field(
+        default_factory=lambda: {
+            "build": Build,
+            "deploy": Deploy,
+        }
+    )
+    """
+    A class representing a service in a Docker Compose configuration.
 
-    # Add main_container service
-    docker_compose.add_service(
+    Inherits from:
+        Field: A class representing a field.
+
+    Attributes:
+        build (Build): The build configuration for the service.
+        deploy (Deploy): The deployment configuration for the service.
+        container_name (str): The name of the container.
+        volumes (list): The volumes associated with the service.
+
+    Methods:
+        __init__(self, container_name="", volumes=[], **kwargs)
+            Initializes a new instance of the Service class.
+
+        activate_display(self)
+            Activates the display configuration.
+
+        extra_volumes_display(self)
+            Adds extra volumes required for display configuration.
+    """
+
+    def activate_display(self):
+        """
+        Activates the display configuration.
+
+        Returns:
+            None
+        """
+
+        self.build.get_display()
+        self.extra_volumes_display()
+        self.privileged = True
+        self.network_mode = "host"
+
+    def extra_volumes_display(self):
+        """
+        Adds extra volumes required for display configuration.
+
+        Returns:
+            None
+        """
+
+        self.volumes += [
+            "/tmp/.X11-unix:/tmp/.X11-unix:rw",
+            f"/home/{get_user_id_data()['USER_NAME']}/.Xauthority:/home/{get_user_id_data()['USER_NAME']}/.Xauthority:rw",
+        ]
+
+
+if __name__ == "__main__":
+    # Create DockerComposeFile instance
+    docker_compose_file = DockerComposeFile()
+
+    # # Add main_container service
+    docker_compose_file.add_service(
         "main_service", container_name="my_custom_container"
     )
 
-    # If you want to add a deploy field for gpu access
-    docker_compose.services.main_service.deploy.activate_gpu()
+    # # If you want to add a deploy field for gpu access
+    # docker_compose.services.main_service.deploy.activate_gpu()
 
-    # if you need to enable x forwarding
-    docker_compose.services.main_service.activate_display()
+    # # if you need to enable x forwarding
+    # docker_compose.services.main_service.activate_display()
 
     # Export to docker-compose.yml
-    docker_compose.export()
+    docker_compose_file.dump_to_yml("docker-compose.yml", private=True)

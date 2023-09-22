@@ -20,7 +20,7 @@ CMDS = {
     "init": init,
     "clean": clean,
     "status": status,
-    "install": build,
+    "build": build,
 }
 
 
@@ -71,8 +71,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
 
     ## Install command
-    install_impl_parser = subparsers.add_parser(
-        "install", help="Install a project"
+    build_impl_parser = subparsers.add_parser(
+        "build", help="Install a project"
     )
 
     ## Clean command
