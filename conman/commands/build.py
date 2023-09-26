@@ -63,8 +63,8 @@ class CondaEnvironment(Builder):
 @dataclass
 class Image(Builder):
     generate: bool = False
-    name: str = "<image_name>"
-    tag: str = "<image_tag>"
+    name: str = "<root_image_name>"
+    tag: str = "<root_image_tag>"
     from_image: Dict[str, str] = field(
         default_factory=lambda: {"name": "ubuntu", "tag": "20.04"}
     )
@@ -85,6 +85,8 @@ class Image(Builder):
 @asi
 @dataclass
 class ImageUser(Builder):
+    name: str = "<user_image_name>"
+    tag: str = "<user_image_tag>"
     extra_instructions: List[str] = field(default_factory=lambda: [])
     __private_root_img__: Image = Image()
 
@@ -92,7 +94,9 @@ class ImageUser(Builder):
         self, filename: str = "Dockerfile", graphical=False
     ) -> str:
         docker_file = DockerFile()
-        docker_file.default_user_instruction(graphical=graphical)
+        docker_file.default_user_instruction(
+            base_name=f"{self.name}:{self.tag}", graphical=graphical
+        )
         for ins in self.extra_instructions:
             docker_file.add_instruction(ins)
         docker_file.generate(filename=filename)
@@ -101,7 +105,7 @@ class ImageUser(Builder):
 @asi
 @dataclass
 class Graphical(Builder):
-    enabled: bool = False
+    # enabled: bool = False
     protocol: str = "x11"
 
     def x_access() -> None:
@@ -113,7 +117,7 @@ class Graphical(Builder):
 @asi
 @dataclass
 class Gpu(Builder):
-    enabled: bool = False
+    # enabled: bool = False
     manufacturer: str = "nvidia"
     count: int = 0
 
@@ -122,7 +126,7 @@ class Gpu(Builder):
 @dataclass
 class Container(Builder):
     docker_compose: DockerCompose = DockerCompose()
-    devcontainer: DevContainer = DevContainer()
+    devcontainer: Optional[DevContainer] = DevContainer()
     graphical: Graphical = Graphical()
     gpu: Gpu = Gpu()
 
@@ -135,9 +139,6 @@ class Container(Builder):
             "docker_compose": DockerCompose,
         }
     )
-
-    # def __post_init__(self):
-    #     self.docker_compose.add_service("main_service", container_name="my_custom_container" )
 
 
 @asi
@@ -170,13 +171,11 @@ class Images(Builder):
 class Config(Builder):
     images: Images = Images()
     container: Container = Container()
-    user_settings: UserSettings = UserSettings()
     __private_class_lib__: Dict = field(
         default_factory=lambda: {
             "images": Images,
             "root": Image,
             "user": ImageUser,
-            "user_settings": UserSettings,
             "container": Container,
             "gpu": Gpu,
             "graphical": Graphical,
@@ -198,20 +197,31 @@ class Config(Builder):
         cls, filename: Path = ".conman-config.yml"
     ) -> None:
         dic = utils.load_yml_file(yml_filename=filename)
-        cls.__private_class_lib__ = {
-            "images": Images,
-            "root": Image,
-            "user": ImageUser,
-            "user_settings": UserSettings,
-            "container": Container,
-            "gpu": Gpu,
-            "graphical": Graphical,
-            "devcontainer": DevContainer,
-            "conda_environment": CondaEnvironment,
-            "docker_compose": DockerCompose,
-        }
 
-        return cls.from_dic(dic)
+        instance = cls.from_dic(dic)
+        instance.__private_yml_dic = dic
+
+        for key in dic:
+            if hasattr(instance, key):
+                attr = getattr(instance, key)
+                attr = Config.deletetion(obj=attr, dic=dic[key])
+                setattr(instance, key, attr)
+
+        # import ipdb ; ipdb.set_trace()
+        return instance
+
+    @staticmethod
+    def deletetion(obj, dic):
+        attrs = []
+        for attr in obj.__dict__.keys():
+            if attr not in dic and not attr.startswith("__"):
+                attrs.append(attr)
+
+        for attr in attrs:
+            print(f"Deleting {attr} from {obj.__class__.__name__}")
+            setattr(obj, attr, None)
+
+        return obj
 
     def dump_conman_config_file(
         self, filename: Path = ".conman-config.yml"
@@ -222,6 +232,7 @@ class Config(Builder):
             + "# Please take your time and carefully complete this file.\n"
             + "# < Authored by: C. Elmo and L. Charleux >\n"
         )
+
         self.dump_to_yml(filename=filename, private=True, preambule=config_msg)
 
     def run_building(self) -> None:
@@ -232,7 +243,8 @@ class Config(Builder):
         self.build_dockerfile_root()
 
     def build_devcontainer(self) -> None:
-        if hasattr(self.container, "devcontainer"):
+
+        if self.container.devcontainer is not None:
             self.wdir += ".devcontainer/"
             # make directory .devcontainer if not exists
             if not os.path.isdir(".devcontainer"):
@@ -240,6 +252,8 @@ class Config(Builder):
                 print("Directory .devcontainer created")
 
             self.build_devcontainer_json()
+        else:
+            print("No devcontainer section in config file")
 
     def build_devcontainer_json(self) -> None:
         # create devcontainer.json file
@@ -264,41 +278,38 @@ class Config(Builder):
             service_name=self.container.docker_compose.service_name
         )
 
-        if self.container.graphical.enabled:
+        # Graphical forwarding
+        if self.container.graphical is not None:
             target_service.activate_display()
+        # Volume mounting
+        target_service.appending_volumes(self.container.docker_compose.volumes)
 
-        if self.container.gpu.enabled:
+        # Gpu enabling
+        if self.container.gpu is not None:
             target_service.deploy.activate_gpu()
 
         # create docker-compose.yml file
         if not os.path.isfile("docker-compose.yml"):
-            print("Creating docker-compose.yml file...")
-
             docker_compose_file.dump_to_yml(
                 filename=f"{self.wdir}docker-compose.yml", private=True
             )
-            print(f"{self.wdir}docker-compose.yml file created")
         else:
             print(f"{self.wdir}docker-compose.yml file already exists")
 
     def build_dockerfile_user(self) -> None:
         def _check_graphical():
-            if (
-                self.container.graphical.enabled
-                and self.container.graphical.protocol == "x11"
-            ):
-                return True
+            if self.container.graphical is not None:
+                if self.container.graphical.protocol == "x11":
+                    return True
             else:
                 return False
 
         # create Dockerfile.user file
         if not os.path.isfile("Dockerfile.user"):
-            print("Creating Dockerfile.user file...")
             self.images.user.to_dockerfile(
                 filename=f"{self.wdir}Dockerfile.user",
                 graphical=_check_graphical(),
             )
-            print(f"{self.wdir}Dockerfile.user file created")
         else:
             print(f"{self.wdir}Dockerfile.user file already exists")
 
@@ -306,11 +317,9 @@ class Config(Builder):
         # create Dockerfile.root file
         if self.images.root.generate:
             if not os.path.isfile("Dockerfile.root"):
-                print("Creating Dockerfile.root file...")
                 self.images.root.to_dockerfile(
                     filename=f"{self.wdir}Dockerfile.root"
                 )
-                print(f"{self.wdir}Dockerfile.root file created")
             else:
                 print(f"{self.wdir}Dockerfile.root file already exists")
 
@@ -318,7 +327,9 @@ class Config(Builder):
 def build():
 
     print("Building...")
+
     config = Config().load_conman_config_file(filename=CONFIG_FILE)
+
     config.run_building()
 
 

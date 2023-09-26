@@ -9,34 +9,34 @@ images:
             name: "ubuntu"
             tag: "20.04"
         conda_environment:
-            enabled: true
             directory: "/opt/conda"
             env_name: "myenv"
             environment_file: "./environment.yml"
         extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]" classically add root specific instructions
 
     user:
+        name: "user_img_name"
+        tag: "user_img_tag"
         extra_instructions: [] # Add extra arguments to docker build command "INSTRUCTION [ARGUMENTS]", classically add user specific instructions (don't sudo if needed)
 
-user_settings:
-    volumes: [] # Use docker compose volumes syntaxe <path_host>:<path_container>
 
 container:
-    name: "compose_img_name"
-    main_service:
-        name: "main_container"
-        container_name: "container_stack_name"
+    docker_compose:
+        container_name: ComposeBigFoot
+        service_name: dahu
+        volumes: [] # Use docker compose volumes syntaxe <path_host>:<path_container>
 
     devcontainer:
-        enabled: true
         name: "devcontainer_name"
-        extensions: []
-
+        customizations:
+            vscode:
+                extensions:
+                - ms-python.python
+                - njpwerner.autodocstring
+                - KevinRose.vsc-python-indent
     graphical:
-        enabled: false
         protocol: "x11"
 
     gpu:
-        enabled: false
         manufacturer: "nvidia"
-        count: 1
+        count: 2

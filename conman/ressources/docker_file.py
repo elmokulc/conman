@@ -238,9 +238,13 @@ class DockerFile:
                 comments="Conda env activation for root user",
             )
 
-    def default_user_instruction(self, graphical: bool = False):
+    def default_user_instruction(
+        self,
+        base_name: str = "userImgName:userImgTag",
+        graphical: bool = False,
+    ):
 
-        self.add("ARG", "BASE_IMAGE", comments="ARG BASE_IMAGE")
+        self.add("ARG", f"BASE_IMAGE={base_name}", comments="ARG BASE_IMAGE")
         self.add("FROM", "${BASE_IMAGE}", comments="FROM ${BASE_IMAGE}")
         if graphical:
             self.add(

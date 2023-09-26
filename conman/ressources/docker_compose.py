@@ -50,6 +50,7 @@ def get_display():
 class DockerCompose(Builder):
     container_name: str = "ContainerNameDockerCompose"
     service_name: str = "main_service_name"
+    volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
     pass
 
 
@@ -197,6 +198,7 @@ class Deploy(Builder):
                 }
             ],
         )
+        print("-> GPU activated")
 
 
 @asi
@@ -247,6 +249,7 @@ class Service(Builder):
         self.extra_volumes_display()
         self.privileged = True
         self.network_mode = "host"
+        print("-> Display forwading activated")
 
     def extra_volumes_display(self):
         """
@@ -256,10 +259,21 @@ class Service(Builder):
             None
         """
 
-        self.volumes += [
+        X_volumes = [
             "/tmp/.X11-unix:/tmp/.X11-unix:rw",
             f"/home/{get_user_id_data()['USER_NAME']}/.Xauthority:/home/{get_user_id_data()['USER_NAME']}/.Xauthority:rw",
         ]
+        self.appending_volumes(X_volumes)
+
+    def appending_volumes(self, volumes):
+        """
+        Adds extra volumes required for display configuration.
+
+        Returns:
+            None
+        """
+        [print(f"-> Add volume: {v}") for v in volumes]
+        self.volumes += volumes
 
 
 if __name__ == "__main__":

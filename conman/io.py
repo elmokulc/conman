@@ -41,7 +41,9 @@ def asi(subclass):
 
 class Builder:
     def __init__(self, __private_class_lib__: Dict = {}, **kwargs) -> None:
+
         self.__private_class_lib__: Dict = __private_class_lib__
+
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -52,31 +54,36 @@ class Builder:
         kwargs = {}
 
         for key, value in dic.items():
+            temps_instance = cls()
+            temps_instance.update_private_class_lib(dic)
+
             if (
-                hasattr(cls(), "__private_class_lib__")
-                and key in cls().__private_class_lib__
+                hasattr(temps_instance, "__private_class_lib__")
+                and key in temps_instance.__private_class_lib__
             ):
-                _class = cls().__private_class_lib__[key]
-                # _class = _class()
-                # print(cls)
-                # print(_class.__private_class_lib__)
-                # Use ipython debugger
-                # import ipdb; ipdb.set_trace()
-                # sub_classes = set(value) or set(cls.__private_class_lib__)
+                _class = temps_instance.__private_class_lib__[key]
             else:
                 _class = Builder
 
-                # Use ipython debugger
-                # print(key)
-                # import ipdb; ipdb.set_trace()
-            # sub_classes = set(value) or set(cls.__private_class_lib__)
-
             if value.__class__ == dict:
-                kwargs[key] = _class().from_dic(value)
+                sub_instance = _class()
+                sub_instance.update_private_class_lib(dic)
+                kwargs[key] = sub_instance.from_dic(value)
             else:
                 kwargs[key] = value
 
-        return cls(**kwargs)
+        instance = cls(**kwargs)
+        instance.update_private_class_lib(dic)
+        return instance
+
+    def update_private_class_lib(self, dic: Dict):
+        inter_key = set(dic) & set(self.__private_class_lib__)
+        shared_class_lib = {}
+        for key in inter_key:
+            shared_class_lib[key] = self.__private_class_lib__[key]
+
+        self.__private_class_lib__ = shared_class_lib
+        return self
 
     @staticmethod
     def class_representer(dumper, data):

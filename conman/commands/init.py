@@ -16,9 +16,6 @@ def init() -> int:
             "Run : 'conman clean' to remove it first or 'conman init --force' to overwrite it"
         )
     else:
-        # utils.cp_template_file(
-        #     template_filename="empty_template_.conman-config.yml"
-        # )
         Config().dump_conman_config_file(filename=CONFIG_FILE)
     return 0
 
