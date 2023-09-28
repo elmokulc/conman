@@ -102,6 +102,7 @@ class ImageUser(Builder):
         docker_file.default_user_instruction(
             base_name=f"{self.__private_root_img__.name}:{self.__private_root_img__.tag}",
             graphical=graphical,
+            conda_obj=self.__private_root_img__.conda_environment,
         )
         if self.extra_instructions:
             print("Adding user extra instructions to Dockerfile...")
@@ -109,6 +110,13 @@ class ImageUser(Builder):
                 self.extra_instructions, comment="EXTRA USER INSTRUCTIONS"
             )
             docker_file.add_instruction(user_instruction)
+
+        if self.__private_root_img__.conda_environment is not None:
+            print("Adding conda environment to Dockerfile...")
+        else:
+            print("No conda environment in root image")
+
+        docker_file.default_user_end_instruction()
 
         docker_file.generate(filename=filename)
 

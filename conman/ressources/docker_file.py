@@ -320,55 +320,36 @@ class DockerFile:
         self,
         base_name: str = "userImgName:userImgTag",
         graphical: bool = False,
+        conda_obj: object = None,
     ):
 
         self.add("ARG", f"BASE_IMAGE={base_name}", comments="ARG BASE_IMAGE")
         self.add("FROM", "${BASE_IMAGE}", comments="FROM ${BASE_IMAGE}")
+        self.add(
+            "ARG",
+            ["USER_NAME", "USER_UID", "USER_GID"],
+            comments="ARGS",
+        )
+        self.add(
+            "ENV",
+            [
+                "USER_NAME=${USER_NAME}",
+                "USER_GID=${USER_GID}",
+                "USER_UID=${USER_UID}",
+            ],
+            comments="ENV VARIABLES",
+        )
+
         if graphical:
             self.add(
-                "ARG",
-                [
-                    "USER_NAME",
-                    "USER_UID",
-                    "USER_GID",
-                    "CONDA_ENV_NAME",
-                    "DISPLAY",
-                ],
-                comments="ARGS",
-            )
-            self.add(
-                "ENV",
-                [
-                    "USER_NAME=${USER_NAME}",
-                    "USER_GID=${USER_GID}",
-                    "USER_UID=${USER_UID}",
-                    "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
-                    "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
-                    "DISPLAY=${DISPLAY}",
-                ],
+                ["ARG", "ENV"],
+                ["DISPLAY", "DISPLAY=${DISPLAY}"],
+                comments="ARGS GRAPHICAL",
             )
 
             self.add(
                 "RUN",
                 "apt-get update \\ \n && apt-get install -y sudo x11-apps xauth",
-            )
-
-        else:
-            self.add(
-                "ARG",
-                ["USER_NAME", "USER_UID", "USER_GID", "CONDA_ENV_NAME"],
-                comments="ARGS",
-            )
-            self.add(
-                "ENV",
-                [
-                    "USER_NAME=${USER_NAME}",
-                    "USER_GID=${USER_GID}",
-                    "USER_UID=${USER_UID}",
-                    "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
-                    "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
-                ],
-                comments="ENV VARIABLES",
             )
 
         self.add(
@@ -385,14 +366,27 @@ class DockerFile:
             "USER", f"${{USER_UID}}:${{USER_GID}}", comments="Log as $USER"
         )
 
-        self.add(
-            "RUN",
-            [
-                'echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc',
-            ],
-            comments="Intialize conda and activate conda environment",
-        )
+        # Conda settings and installation
+        if conda_obj:
+            self.add(
+                ["ARG", "ENV", "ENV"],
+                [
+                    "CONDA_ENV_NAME",
+                    "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
+                    "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
+                ],
+                comments="CONDA ARGS AND ENV VARIABLES",
+            )
 
+            self.add(
+                "RUN",
+                [
+                    'echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc',
+                    'echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc',
+                ],
+                comments="Intialize conda and activate conda environment",
+            )
+
+    def default_user_end_instruction(self):
+        self.add("RUN", "source ~/.bashrc")
         self.add("SHELL", ['["/bin/bash", "--login", "-c"]'])
-
-        self.add("RUN", "/bin/bash ~/.bashrc")
