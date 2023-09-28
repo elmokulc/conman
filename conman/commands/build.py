@@ -334,10 +334,4 @@ def build():
 
 
 if __name__ == "__main__":
-    config_file = "test_in.yml"
-    # config_file = "./test.yml"
-    config = Config().load_conman_config_file(filename=config_file)
-    # print(config.container.gpu.count)
-    # config = Config()
-    # config.dump_conman_config_file(filename="test_out.yml")
-    # config.container.devcontainer.dump_devcontainerjson_file()
+    build()
