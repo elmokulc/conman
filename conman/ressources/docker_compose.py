@@ -123,7 +123,7 @@ class Build(Builder):
             Activates the display configuration.
     """
 
-    dockerfile: str = "./Dockerfile-user"
+    dockerfile: str = "./Dockerfile.user"
     context: str = "."
     args: List[str] = field(default_factory=lambda: [])
 

@@ -388,8 +388,11 @@ class DockerFile:
         self.add(
             "RUN",
             [
-                "conda init",
                 'echo "conda activate $CONDA_ENV_NAME" >> ~/.bashrc',
             ],
             comments="Intialize conda and activate conda environment",
         )
+
+        self.add("SHELL", ['["/bin/bash", "--login", "-c"]'])
+
+        self.add("RUN", "/bin/bash ~/.bashrc")

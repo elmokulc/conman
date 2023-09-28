@@ -28,7 +28,7 @@ class DevContainer(Builder):
     overrideCommand: bool = True
     name: str = "devcontainer_name"
     initializeCommand: str = "echo 'Initializing devcontainer...'"
-    dockerComposeFile: str = str(Path("/.docker-compose.yml"))
+    dockerComposeFile: str = str(Path("./docker-compose.yml"))
     service: str = "main_service_name"
     workspaceFolder: str = "/workspace"
     shutdownAction: str = "stopCompose"

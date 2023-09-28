@@ -91,8 +91,6 @@ class Image(Builder):
 @asi
 @dataclass
 class ImageUser(Builder):
-    name: str = "<user_image_name>"
-    tag: str = "<user_image_tag>"
     extra_instructions: List[str] = field(default_factory=lambda: [])
     __private_root_img__: Image = Image()
 
@@ -102,7 +100,8 @@ class ImageUser(Builder):
         print("--- Build user Dockerfile ---")
         docker_file = DockerFile()
         docker_file.default_user_instruction(
-            base_name=f"{self.name}:{self.tag}", graphical=graphical
+            base_name=f"{self.__private_root_img__.name}:{self.__private_root_img__.tag}",
+            graphical=graphical,
         )
         if self.extra_instructions:
             print("Adding user extra instructions to Dockerfile...")
@@ -169,7 +168,7 @@ class UserSettings(Builder):
 @dataclass
 class Images(Builder):
     root: Image = Image()
-    user: ImageUser = ImageUser(__private_root_img__=Image())
+    user: ImageUser = ImageUser(__private_root_img__=root)
     __private_class_lib__: Dict = field(
         default_factory=lambda: {
             "root": Image,
