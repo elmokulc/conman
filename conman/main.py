@@ -17,10 +17,10 @@ from conman.commands.build import build
 
 
 CMDS = {
-    "init": init,
-    "clean": clean,
-    "status": status,
-    "build": build,
+    "init": {"func": init, "kargs": ["force"]},
+    "clean": {"func": clean, "kargs": []},
+    "status": {"func": status, "kargs": []},
+    "build": {"func": build, "kargs": []},
 }
 
 
@@ -40,20 +40,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
 
     # Generic options - Options group
-    group = parser.add_mutually_exclusive_group()
-    ## Working directory
-    group.add_argument(
-        "-f",
-        "--file",
-        help="Specify an alternate project file",
-    )
-    ## Verbose
-    group.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Increase verbosity",
-    )
+    # group = parser.add_mutually_exclusive_group()
+    # ## Working directory
+    # group.add_argument(
+    #     "-f",
+    #     "--file",
+    #     help="Specify an alternate project file",
+    # )
+    # ## Verbose
+    # group.add_argument(
+    #     "-v",
+    #     "--verbose",
+    #     action="store_true",
+    #     help="Increase verbosity",
+    # )
 
     # Subparsers
     subparsers = parser.add_subparsers(dest="command")
@@ -62,43 +62,51 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     ## Status command
     status_impl_parser = subparsers.add_parser(
-        "status", help="Show the project status"
+        "status", help="Show the project status (not implemented yet)"
     )
 
     ## Init command
     init_impl_parser = subparsers.add_parser(
         "init", help="Initialize a new project"
     )
+    init_impl_parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Force initialization, even if the project already exists",
+    )
 
     ## Install command
-    build_impl_parser = subparsers.add_parser(
-        "build", help="Install a project"
-    )
+    build_impl_parser = subparsers.add_parser("build", help="Build project")
 
     ## Clean command
-    clean_impl_parser = subparsers.add_parser(
-        "clean", help="Clean the project"
-    )
+    clean_impl_parser = subparsers.add_parser("clean", help="Clean project")
 
     # Analyse command line arguments
     args = parser.parse_args(argv)
 
-    # Update commands attributes relatives to options
-    ## Working directory
-    if args.file:
-        if os.path.exists(os.path.dirname(args.file)):
-            pass
-        else:
-            print(
-                f"Specified directory: {os.path.dirname(args.file)} do not exist."
-            )
-    if args.verbose:
-        status()
+    # # Update commands attributes relatives to options
+    # ## Working directory
+    # if args.file:
+    #     if os.path.exists(os.path.dirname(args.file)):
+    #         pass
+    #     else:
+    #         print(
+    #             f"Specified directory: {os.path.dirname(args.file)} do not exist."
+    #         )
+    # if args.verbose:
+    #     status()
 
     # Run the command
+    extra_args = {}
     for key, value in CMDS.items():
         if args.command == key:
-            value()
+            for kwarg in value["kargs"]:
+                if hasattr(args, kwarg):
+                    extra_args.update({kwarg: getattr(args, kwarg)})
+            value["func"](**extra_args)
+
+    # return 0
 
 
 if __name__ == "__main__":
