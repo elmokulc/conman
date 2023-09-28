@@ -45,6 +45,12 @@ def get_display():
         return "host.docker.internal:0"
 
 
+def x_access():
+    # Give access to X11
+    print("Executing xhost +local: ...")
+    os.system("xhost +local:")
+
+
 @asi
 @dataclass
 class DockerCompose(Builder):
@@ -237,6 +243,9 @@ class Service(Builder):
             Adds extra volumes required for display configuration.
     """
 
+    def x_access(self):
+        x_access()
+
     def activate_display(self):
         """
         Activates the display configuration.
@@ -244,7 +253,7 @@ class Service(Builder):
         Returns:
             None
         """
-
+        self.x_access()
         self.build.get_display()
         self.extra_volumes_display()
         self.privileged = True
@@ -263,6 +272,7 @@ class Service(Builder):
             "/tmp/.X11-unix:/tmp/.X11-unix:rw",
             f"/home/{get_user_id_data()['USER_NAME']}/.Xauthority:/home/{get_user_id_data()['USER_NAME']}/.Xauthority:rw",
         ]
+        print("Appending volumes for display configuration...")
         self.appending_volumes(X_volumes)
 
     def appending_volumes(self, volumes):

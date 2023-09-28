@@ -12,7 +12,7 @@ import yaml
 from dataclasses import dataclass, field
 from conman.ressources.devcontainer import DevContainer
 from conman.ressources.docker_compose import DockerComposeFile, DockerCompose
-from conman.ressources.docker_file import DockerFile
+from conman.ressources.docker_file import DockerFile, Instructions
 
 
 @asi
@@ -72,13 +72,19 @@ class Image(Builder):
     extra_instructions: List[str] = field(default_factory=lambda: [])
 
     def to_dockerfile(self, filename: str = "Dockerfile") -> str:
+        print("--- Build root Dockerfile ---")
         docker_file = DockerFile()
         docker_file.default_debian_root_instruction(
             base_image=f"{self.from_image.name}:{self.from_image.tag}",
             conda_obj=self.conda_environment,
         )
-        for ins in self.extra_instructions:
-            docker_file.add_instruction(ins)
+        if self.extra_instructions:
+            print("Adding root extra instructions to Dockerfile...")
+            root_instruction = Instructions.from_lines(
+                self.extra_instructions, comment="EXTRA ROOT INSTRUCTIONS"
+            )
+            docker_file.add_instruction(root_instruction)
+
         docker_file.generate(filename=filename)
 
 
@@ -93,12 +99,18 @@ class ImageUser(Builder):
     def to_dockerfile(
         self, filename: str = "Dockerfile", graphical=False
     ) -> str:
+        print("--- Build user Dockerfile ---")
         docker_file = DockerFile()
         docker_file.default_user_instruction(
             base_name=f"{self.name}:{self.tag}", graphical=graphical
         )
-        for ins in self.extra_instructions:
-            docker_file.add_instruction(ins)
+        if self.extra_instructions:
+            print("Adding user extra instructions to Dockerfile...")
+            user_instruction = Instructions.from_lines(
+                self.extra_instructions, comment="EXTRA USER INSTRUCTIONS"
+            )
+            docker_file.add_instruction(user_instruction)
+
         docker_file.generate(filename=filename)
 
 
@@ -236,11 +248,17 @@ class Config(Builder):
         self.dump_to_yml(filename=filename, private=True, preambule=config_msg)
 
     def run_building(self) -> None:
-        self.wdir = os.getcwd() + "/"
-        self.build_devcontainer()
-        self.build_dockercompose_file()
-        self.build_dockerfile_user()
-        self.build_dockerfile_root()
+        try:
+            self.wdir = os.getcwd() + "/"
+            self.build_devcontainer()
+            self.build_dockercompose_file()
+            self.build_dockerfile_user()
+            self.build_dockerfile_root()
+
+            print("Project Building done successfully")
+        except Exception as e:
+            print(e)
+            print("Project Building failed")
 
     def build_devcontainer(self) -> None:
 
@@ -262,7 +280,7 @@ class Config(Builder):
             self.container.devcontainer.dump_devcontainerjson_file(
                 filename=f"{self.wdir}devcontainer.json"
             )
-            print("devcontainer.json file created")
+            # print("devcontainer.json file created")
         else:
             print("devcontainer.json file already exists")
 

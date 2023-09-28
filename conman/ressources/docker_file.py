@@ -31,6 +31,74 @@ def manage_conda_env_file(
         print(f"Conda env file exists at: \t{envfile}")
 
 
+class Instructions:
+    """
+    Represents an instruction in a Dockerfile.
+    """
+
+    @classmethod
+    def from_line(cls, line: str, comments: str = ""):
+        cmd = line.split(" ")[0]
+        args = " ".join(line.split(" ")[1:])
+        return cls(cmd, args, comments)
+
+    @classmethod
+    def from_lines(cls, lines: str, comment: str = ""):
+        cmds = []
+        argss = []
+        for line in lines:
+            cmds.append(line.split(" ")[0])
+            argss.append(" ".join(line.split(" ")[1:]))
+        return cls(cmds, argss, comment)
+
+    def __init__(self, cmds, arguments, comments=""):
+        """
+        Initialize the Instructions object.
+
+        Args:
+            cmds (str or list): The command(s) of the instruction.
+            arguments (str or list): The argument(s) of the instruction.
+            comments (str, optional): Comments for the instruction. Defaults to "".
+        """
+        self.cmds = cmds
+        self.arguments = arguments
+
+        self.comments = (
+            "# " + comments
+            if comments and not comments.startswith("#")
+            else comments
+        )
+
+    def generate(self):
+        """
+        Generate the instruction as a string.
+
+        Returns:
+            str: The generated instruction string.
+        """
+        if isinstance(self.cmds, list):
+            output = ""
+            for ind, argument in enumerate(self.arguments):
+                if ind == 0:
+                    output += f"{self.comments}\n{self.cmds[ind]} {argument}\n"
+                else:
+                    output += f"{self.cmds[ind]} {argument}\n"
+            return output + "\n"
+
+        elif isinstance(self.arguments, list) and not isinstance(
+            self.cmds, list
+        ):
+            output = ""
+            for ind, argument in enumerate(self.arguments):
+                if ind == 0:
+                    output += f"{self.comments}\n{self.cmds} {argument}\n"
+                else:
+                    output += f"{self.cmds} {argument}\n"
+            return output + "\n"
+        else:
+            return f"{self.comments}\n{self.cmds} {self.arguments}\n\n"
+
+
 class DockerFile:
     """
     A class representing a Dockerfile.
@@ -89,6 +157,16 @@ class DockerFile:
         cmd = line.split(" ")[0]
         args = " ".join(line.split(" ")[1:])
         self.instructions.append(Instructions(cmd, args, comments))
+
+    def add_instruction(self, instruction: Instructions):
+        """
+        Adds a new instruction to the Dockerfile.
+        Args:
+            instruction (Instructions): The instruction to add.
+        Returns:
+            None
+        """
+        self.instructions.append(instruction)
 
     def closing_file(self):
         self.add(
@@ -315,56 +393,3 @@ class DockerFile:
             ],
             comments="Intialize conda and activate conda environment",
         )
-
-
-class Instructions:
-    """
-    Represents an instruction in a Dockerfile.
-    """
-
-    def __init__(self, cmds, arguments, comments=""):
-        """
-        Initialize the Instructions object.
-
-        Args:
-            cmds (str or list): The command(s) of the instruction.
-            arguments (str or list): The argument(s) of the instruction.
-            comments (str, optional): Comments for the instruction. Defaults to "".
-        """
-        self.cmds = cmds
-        self.arguments = arguments
-
-        self.comments = (
-            "# " + comments
-            if comments and not comments.startswith("#")
-            else comments
-        )
-
-    def generate(self):
-        """
-        Generate the instruction as a string.
-
-        Returns:
-            str: The generated instruction string.
-        """
-        if isinstance(self.cmds, list):
-            output = ""
-            for ind, argument in enumerate(self.arguments):
-                if ind == 0:
-                    output += f"{self.comments}\n{self.cmds[ind]} {argument}\n"
-                else:
-                    output += f"{self.cmds[ind]} {argument}\n"
-            return output + "\n"
-
-        elif isinstance(self.arguments, list) and not isinstance(
-            self.cmds, list
-        ):
-            output = ""
-            for ind, argument in enumerate(self.arguments):
-                if ind == 0:
-                    output += f"{self.comments}\n{self.cmds} {argument}\n"
-                else:
-                    output += f"{self.cmds} {argument}\n"
-            return output + "\n"
-        else:
-            return f"{self.comments}\n{self.cmds} {self.arguments}\n\n"

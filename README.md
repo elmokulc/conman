@@ -25,7 +25,11 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
     pip install git+https://github.com/elmokulc/conman.git@<branch_name>
     ```
 
-    **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current most advanced branch is `0.0.2`.
+    **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current stable realease is `1.0`.
+
+    ```bash
+    pip install git+https://github.com/elmokulc/conman.git@1.0
+    ```
 
 ---
 
@@ -62,48 +66,46 @@ As example:
 images:
     root:
         generate: false
-        name: root_img_name
-        tag: root_img_tag
+        name: <root_image_name>
+        tag: <root_image_tag>
         from_image:
             name: ubuntu
             tag: '20.04'
         conda_environment:
-            enabled: true
             directory: /opt/conda
             env_name: myenv
             environment_file: ./environment.yml
         extra_instructions: 
             - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
     user:
+        name: <user_image_name>
+        tag: <user_image_tag>
         extra_instructions:
             - "RUN sudo mkdir -p /python_modules"
             - "RUN sudo chown -R $USER:$USER /python_modules"
-            - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
-
-# User_settings Settings
-user_settings:
-    volumes: 
-        - ..:/workspace
-        - path_module1/module1:/python_modules/module1
-        - path_module2/module2:/python_modules/module2
+            - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"     
 
 # Container Settings
 container:
-    name: compose_img_name
-    main_service:
-        name: main_container
-        container_name: container_stack_name
+    docker_compose:
+        container_name: ContainerNameDockerCompose
+        service_name: main_service_name
+        volumes:
+        - ..:/workspace
+        - path_module1/module1:/python_modules/module1
+        - path_module2/module2:/python_modules/module2
     devcontainer:
-        enabled: true
         name: devcontainer_name
-        extensions: 
-            - "ms-python.python"
-            - "ms-python.vscode-pylance"
+        customizations:
+            vscode:
+                settings: {}
+                extensions:
+                - ms-python.python
+                - ms-python.vscode-pylance
+                - ms-toolsai.jupyter
     graphical:
-        enabled: false
         protocol: x11
     gpu:
-        enabled: false
         manufacturer: nvidia
         count: 1
 ```
@@ -120,38 +122,40 @@ container:
 
     ```console
     $ ➜ ~/my_project $ conman build
-    Checking config file ...
-    base_name = ubuntu:20.04
-    volumes:
-    - .:/workspace
-    conda direcotry = /opt/conda
-    conda env name = myenv
-    Executing xhost +local: ...
-    Directory .devcontainer created
-    Extra instructions found. Adding them to Dockerfile
-    Adding:         RUN sudo mkdir -p /python_modules
-    Adding:         RUN sudo chown -R $USER:$USER /python_modules
-    Adding:         RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc
-    Generated Dockerfile-user at:    /home/vscode/my_project/.devcontainer/Dockerfile-user
-    Conda env file exists at:       ./environment.yml
-    Extra instructions found. Adding them to Dockerfile-user
-    Adding:         RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc
-    Generated Dockerfile at:         /home/vscode/my_project/Dockerfile
+        Building...
+        Directory .devcontainer created
+        Creating devcontainer.json file...
+        Executing xhost +local: ...
+        Appending volumes for display configuration...
+        -> Add volume: /tmp/.X11-unix:/tmp/.X11-unix:rw
+        -> Add volume: /home/vscode/.Xauthority:/home/vscode/.Xauthority:rw
+        -> Display forwading activated
+        -> Add volume: ..:/workspace
+        -> Add volume: path_module1/module1:/python_modules/module1
+        -> Add volume: path_module2/module2:/python_modules/module2
+        -> GPU activated
+        --- Build user Dockerfile ---
+        Adding user extra instructions to Dockerfile...
+        Generated Dockerfile.user at:    ~/my_project/.devcontainer/Dockerfile.user
+        --- Build root Dockerfile ---
+        Creating conda env file at:     ./environment.yml
+        Adding root extra instructions to Dockerfile...
+        Generated Dockerfile.root at:    ~/my_project/.devcontainer/Dockerfile.root
+        Project Building done successfully
     ```
     The project directory will now look like this:
     ```console
     $ ➜ ~/my_project $ tree -a
-    .
-    ├── .conman-config.yml
-    ├── .devcontainer
-    │   ├── devcontainer.json
-    │   ├── docker-compose.yml
-    │   └── Dockerfile-user
-    ├── Dockerfile
-    └── environment.yml
+        .
+        ├── .conman-config.yml
+        ├── .devcontainer
+        │   ├── devcontainer.json
+        │   ├── docker-compose.yml
+        │   ├── Dockerfile.root
+        │   └── Dockerfile.user
+        └── environment.yml
 
-
-        1 directory, 6 files   
+        1 directory, 6 files  
     ``` 
 
 - NB:  All available commands can be listed by running:
