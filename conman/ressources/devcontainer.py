@@ -62,7 +62,13 @@ class DevContainer(Builder):
     )
 
     def dump_devcontainerjson_file(self, filename: str = "devcontainer.json"):
-        self.dump_to_json(filename, empty=True, none=True)
+        self.dump_to_json(
+            filename,
+            rm_private=True,
+            rm_optional=False,
+            rm_empty=True,
+            rm_none=True,
+        )
 
 
 if __name__ == "__main__":
