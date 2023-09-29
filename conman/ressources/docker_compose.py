@@ -286,6 +286,15 @@ class Service(Builder):
         [print(f"-> Add volume: {v}") for v in volumes]
         self.volumes += volumes
 
+    def activate_conda(self, conda_env_name):
+        """
+        Activates the conda configuration.
+
+        Returns:
+            None
+        """
+        self.build.add_arg("CONDA_ENV", f"{conda_env_name}")
+
 
 if __name__ == "__main__":
     # Create DockerComposeFile instance

@@ -104,17 +104,25 @@ class ImageUser(Builder):
             graphical=graphical,
             conda_obj=self.__private_root_img__.conda_environment,
         )
+
+        if self.__private_root_img__.conda_environment is not None:
+            print("Adding conda environment to Dockerfile...")
+        else:
+            print("No conda environment in root image")
+
         if self.extra_instructions:
             print("Adding user extra instructions to Dockerfile...")
             user_instruction = Instructions.from_lines(
                 self.extra_instructions, comment="EXTRA USER INSTRUCTIONS"
             )
             docker_file.add_instruction(user_instruction)
-
-        if self.__private_root_img__.conda_environment is not None:
-            print("Adding conda environment to Dockerfile...")
         else:
-            print("No conda environment in root image")
+            print("No extra instructions in user image")
+            user_instruction = Instructions.from_lines(
+                ["RUN echo 'No user extra instructions'"],
+                comment="EXTRA USER INSTRUCTIONS",
+            )
+            docker_file.add_instruction(user_instruction)
 
         docker_file.default_user_end_instruction()
 
@@ -317,6 +325,7 @@ class Config(Builder):
             )
         )
 
+        # Options management (adding args  eventually to the service)
         # Graphical forwarding
         if self.container.graphical is not None:
             target_service.activate_display()
@@ -327,11 +336,17 @@ class Config(Builder):
         if self.container.gpu is not None:
             target_service.deploy.activate_gpu()
 
+        # Conda enabling
+        if self.images.root.conda_environment is not None:
+            target_service.activate_conda(
+                conda_env_name=self.images.root.conda_environment.env_name
+            )
+
         # create docker-compose.yml file
         if not os.path.isfile(f"{self.container.docker_compose.filename}"):
             self.container.docker_compose._docker_compose_file.dump_to_yml(
                 filename=f"{self.wdir}{self.container.docker_compose.filename}",
-                private=True,
+                rm_private=True,
             )
         else:
             print(

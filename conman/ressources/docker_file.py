@@ -388,5 +388,12 @@ class DockerFile:
             )
 
     def default_user_end_instruction(self):
-        self.add("RUN", "source ~/.bashrc")
-        self.add("SHELL", ['["/bin/bash", "--login", "-c"]'])
+        self.add(
+            ["SHELL", "RUN", "SHELL"],
+            [
+                '["/bin/bash", "--login", "-c"]',
+                "source ~/.bashrc",
+                '["/bin/bash", "--login", "-c"]',
+            ],
+            comments="END INSTRUCTIONS",
+        )
