@@ -53,15 +53,6 @@ def x_access():
 
 @asi
 @dataclass
-class DockerCompose(Builder):
-    container_name: str = "ContainerNameDockerCompose"
-    service_name: str = "main_service_name"
-    volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
-    pass
-
-
-@asi
-@dataclass
 class DockerComposeFile(Builder):
     version: str = "3.9"
     services: Builder = Builder()
@@ -90,6 +81,16 @@ class DockerComposeFile(Builder):
         """
 
         return getattr(self.services, service_name)
+
+
+@asi
+@dataclass
+class DockerCompose(Builder):
+    filename: str = "docker-compose.yml"
+    container_name: str = "ContainerNameDockerCompose"
+    service_name: str = "main_service_name"
+    volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
+    _docker_compose_file: DockerComposeFile = DockerComposeFile()
 
 
 @asi

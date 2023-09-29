@@ -13,12 +13,12 @@ from dataclasses import dataclass, field
 from conman.ressources.devcontainer import DevContainer
 from conman.ressources.docker_compose import DockerComposeFile, DockerCompose
 from conman.ressources.docker_file import DockerFile, Instructions
+import logging
 
 
 @asi
 @dataclass
 class CondaEnvironment(Builder):
-
     directory: Path = "/opt/conda"
     env_name: str = "myenv"
     environment_file: Path = "./environment.yml"
@@ -159,6 +159,10 @@ class Container(Builder):
         }
     )
 
+    def __post_init__(self):
+        self.devcontainer.service = self.docker_compose.service_name
+        self.devcontainer.dockerComposeFile = self.docker_compose.filename
+
 
 @asi
 @dataclass
@@ -203,6 +207,14 @@ class Config(Builder):
             "docker_compose": DockerCompose,
         }
     )
+    _dump_options: Dict = field(
+        default_factory=lambda: {
+            "rm_private": True,
+            "rm_optional": True,
+            "rm_empty": False,
+            "rm_none": False,
+        }
+    )
 
     def __post_init__(self):
         self._check_images()
@@ -223,14 +235,14 @@ class Config(Builder):
         for key in dic:
             if hasattr(instance, key):
                 attr = getattr(instance, key)
-                attr = Config.deletetion(obj=attr, dic=dic[key])
+                attr = Config.deletion(obj=attr, dic=dic[key])
                 setattr(instance, key, attr)
 
         # import ipdb ; ipdb.set_trace()
         return instance
 
     @staticmethod
-    def deletetion(obj, dic):
+    def deletion(obj, dic):
         attrs = []
         for attr in obj.__dict__.keys():
             if attr not in dic and not attr.startswith("__"):
@@ -243,7 +255,8 @@ class Config(Builder):
         return obj
 
     def dump_conman_config_file(
-        self, filename: Path = ".conman-config.yml"
+        self,
+        filename: Path = ".conman-config.yml",
     ) -> None:
         # Prettify the config file
         config_msg = (
@@ -252,7 +265,9 @@ class Config(Builder):
             + "# < Authored by: C. Elmo and L. Charleux >\n"
         )
 
-        self.dump_to_yml(filename=filename, private=True, preambule=config_msg)
+        self.dump_to_yml(
+            filename=filename, preambule=config_msg, **self._dump_options
+        )
 
     def run_building(self) -> None:
         try:
@@ -264,11 +279,10 @@ class Config(Builder):
 
             print("Project Building done successfully")
         except Exception as e:
-            print(e)
             print("Project Building failed")
+            logging.exception(e)
 
     def build_devcontainer(self) -> None:
-
         if self.container.devcontainer is not None:
             self.wdir += ".devcontainer/"
             # make directory .devcontainer if not exists
@@ -292,15 +306,15 @@ class Config(Builder):
             print("devcontainer.json file already exists")
 
     def build_dockercompose_file(self) -> None:
-
-        docker_compose_file = DockerComposeFile()
         # Add main_container service
-        docker_compose_file.add_service(
+        self.container.docker_compose._docker_compose_file.add_service(
             service_name=self.container.docker_compose.service_name,
             container_name=self.container.docker_compose.container_name,
         )
-        target_service = docker_compose_file.get_service(
-            service_name=self.container.docker_compose.service_name
+        target_service = (
+            self.container.docker_compose._docker_compose_file.get_service(
+                service_name=self.container.docker_compose.service_name
+            )
         )
 
         # Graphical forwarding
@@ -314,12 +328,15 @@ class Config(Builder):
             target_service.deploy.activate_gpu()
 
         # create docker-compose.yml file
-        if not os.path.isfile("docker-compose.yml"):
-            docker_compose_file.dump_to_yml(
-                filename=f"{self.wdir}docker-compose.yml", private=True
+        if not os.path.isfile(f"{self.container.docker_compose.filename}"):
+            self.container.docker_compose._docker_compose_file.dump_to_yml(
+                filename=f"{self.wdir}{self.container.docker_compose.filename}",
+                private=True,
             )
         else:
-            print(f"{self.wdir}docker-compose.yml file already exists")
+            print(
+                f"{self.wdir}{self.container.docker_compose.filename} file already exists"
+            )
 
     def build_dockerfile_user(self) -> None:
         def _check_graphical():
@@ -350,7 +367,6 @@ class Config(Builder):
 
 
 def build():
-
     print("Building...")
 
     config = Config().load_conman_config_file(filename=CONFIG_FILE)

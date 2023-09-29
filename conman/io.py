@@ -112,17 +112,22 @@ class Builder:
         yaml.add_representer(cls, cls.class_representer)
 
     @staticmethod
+    def deleting_attributes(obj: object, attributes: List[str]) -> object:
+        for attr in attributes:
+            delattr(obj, attr)
+        return obj
+
+    @staticmethod
     def remove_private_attributes(obj) -> None:
         attributes = obj.__dict__
         private_attributes = []
         for attr, value in attributes.items():
-            if attr.startswith("__private_"):
+            if attr.startswith("__private_") or attr.startswith("_"):
                 private_attributes.append(attr)
             elif hasattr(value, "__dict__"):
                 obj.remove_private_attributes(value)
 
-        for attr in private_attributes:
-            delattr(obj, attr)
+        Builder.deleting_attributes(obj, private_attributes)
 
         return obj
 
@@ -148,8 +153,7 @@ class Builder:
                 empty_attributes.append(attr)
 
         # Remove empty attributes from the object
-        for attr in empty_attributes:
-            delattr(obj, attr)
+        Builder.deleting_attributes(obj, empty_attributes)
 
         return obj
 
@@ -166,8 +170,22 @@ class Builder:
                 if not value.__dict__:
                     none_attributes.append(key)
 
-        for attr in none_attributes:
-            delattr(obj, attr)
+        Builder.deleting_attributes(obj, none_attributes)
+
+        return obj
+
+    @staticmethod
+    def remove_tagged_attributes(obj: object, tag_key: str) -> None:
+        attributes = obj.__dict__
+        optional_attributes = []
+        for attr, value in attributes.items():
+            if attr.startswith(tag_key):
+                for attr_name in value:
+                    optional_attributes.append(attr_name)
+            elif hasattr(value, "__dict__"):
+                obj.remove_tagged_attributes(value, tag_key)
+
+        Builder.deleting_attributes(obj, optional_attributes)
 
         return obj
 
@@ -250,14 +268,26 @@ class Builder:
         with open(filename, "w") as json_file:
             json.dump(yaml_data, json_file, indent=4)
 
-    def removing_attr(self, private=True, empty=False, none=False, **kwargs):
+    def removing_attr(
+        self,
+        rm_private=True,
+        rm_optional=True,
+        rm_empty=False,
+        rm_none=False,
+        **kwargs,
+    ):
         data = self.copy()
-        if private:
+        if rm_optional:
+            data = self.remove_tagged_attributes(
+                data, tag_key="_optional_attributes_"
+            )
+        if rm_private:
             data = self.remove_private_attributes(data)
-        if empty:
+        if rm_empty:
             data = self.remove_empty_attributes(data)
-        if none:
+        if rm_none:
             data = self.remove_none_attributes(data)
+
         return data
 
     def add_field(self, field_name, field_value):

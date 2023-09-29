@@ -6,7 +6,15 @@ from conman.commands.build import Config
 import os
 
 
-def init(force=False) -> int:
+def dump_conman_config_file(optional) -> None:
+    config = Config()
+    config._dump_options["rm_optional"] = not optional
+    config.dump_conman_config_file(
+        filename=CONFIG_FILE,
+    )
+
+
+def init(force=False, optional=False) -> int:
     if not force:
         print("Initializing conman project")
         # Check if .conman-config.yml already exists in current directory
@@ -18,11 +26,11 @@ def init(force=False) -> int:
                 "Run : 'conman clean' to remove it first or 'conman init --force (or -f)' to overwrite it"
             )
         else:
-            Config().dump_conman_config_file(filename=CONFIG_FILE)
+            dump_conman_config_file(optional)
         return 0
     else:
         print("Forced Mode - Reinitializing conman project")
-        Config().dump_conman_config_file(filename=CONFIG_FILE)
+        dump_conman_config_file(optional)
         return 0
 
 

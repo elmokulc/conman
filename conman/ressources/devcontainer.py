@@ -14,6 +14,11 @@ class VSCode(Builder):
             "ms-python.vscode-pylance",
         ]
     )
+    _optional_attributes_: List[str] = field(
+        default_factory=lambda: [
+            "settings",
+        ]
+    )
 
 
 @asi
@@ -35,8 +40,19 @@ class DevContainer(Builder):
     customizations: Customizations = field(default_factory=Customizations)
     postCreateCommand: str = "echo 'Post create command...'"
     postStartCommand: str = "echo 'Post start command...'"
-    # image: Optional[str] = None
-    # features: Optional[Dict[str, Dict[str, Any]]] = None
+
+    _optional_attributes_: List[str] = field(
+        default_factory=lambda: [
+            "overrideCommand",
+            "name",
+            "initializeCommand",
+            "dockerComposeFile",
+            "service",
+            "shutdownAction",
+            "postCreateCommand",
+            "postStartCommand",
+        ]
+    )
 
     __private_class_lib__: Dict = field(
         default_factory=lambda: {

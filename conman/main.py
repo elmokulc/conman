@@ -17,7 +17,7 @@ from conman.commands.build import build
 
 
 CMDS = {
-    "init": {"func": init, "kargs": ["force"]},
+    "init": {"func": init, "kargs": ["force", "optional"]},
     "clean": {"func": clean, "kargs": []},
     "status": {"func": status, "kargs": []},
     "build": {"func": build, "kargs": []},
@@ -74,6 +74,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "-f",
         action="store_true",
         help="Force initialization, even if the project already exists",
+    )
+
+    init_impl_parser.add_argument(
+        "--optional",
+        "-opt",
+        action="store_true",
+        help="Add more options to the conman config file",
     )
 
     ## Install command
