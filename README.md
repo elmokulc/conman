@@ -10,10 +10,10 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 ## Requirements 
 
 - Unix (Linux, macOS) based operating system (WSL workaround for Windows)
-- Docker and Docker-compose
-- Python 3.8+
+- [Docker 24.0+](https://docs.docker.com/get-docker/) and [Docker-compose 2.20+](https://docs.docker.com/compose/)
+- [Python 3.8+](https://www.python.org/downloads/)
 - Python modules :
-    - pip 21.0.1+ (Need setuptools integration)
+    - [pip 21.0.1+](https://pip.pypa.io/en/stable/installation/) (Need setuptools integration)
 
 ---
 
@@ -25,7 +25,9 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
     pip install git+https://github.com/elmokulc/conman.git@<branch_name>
     ```
 
-    **NB**: Replace `<branch_name>` by the name of the branch you want to install. The current stable realease is `1.0`.
+    **NB**: Replace `<branch_name>` by the name of the branch you want to install.
+
+    The current stable realease is `1.0`:
 
     ```bash
     pip install git+https://github.com/elmokulc/conman.git@1.0
@@ -66,8 +68,8 @@ As example:
 images:
     root:
         generate: false
-        name: <root_image_name>
-        tag: <root_image_tag>
+        name: BigFoot
+        tag: latest
         from_image:
             name: ubuntu
             tag: '20.04'
@@ -78,8 +80,6 @@ images:
         extra_instructions: 
             - "RUN echo 'export $PYTHONPATH=/python_modules:$PYTHONPATH' >> ~/.bashrc"
     user:
-        name: <user_image_name>
-        tag: <user_image_tag>
         extra_instructions:
             - "RUN sudo mkdir -p /python_modules"
             - "RUN sudo chown -R $USER:$USER /python_modules"
@@ -116,7 +116,7 @@ container:
     conman build
     ```
 
-    Conman will generate a `docker-compose.yml` file and a `Dockerfile-user`, enventually: a `.devcontainer` directory within a `devcontainer.json` file, a `Dockerfile` and a conda `environment.yml` file, all of this according to your configuration file: `.conman-config.yml` .
+    Conman will generate a `docker-compose.yml` file and a `Dockerfile.user`, enventually: a `.devcontainer` directory within a `devcontainer.json` file, a `Dockerfile.root` and a conda `environment.yml` file, all of this according to your configuration file: `.conman-config.yml` .
 
     Here is an example of the output from the previous configuration file:
 
@@ -158,11 +158,20 @@ container:
         1 directory, 6 files  
     ``` 
 
-- NB:  All available commands can be listed by running:
+## Help
 
-    ```bash
-    conman --help
-    ```
+  All available commands can be listed by running:
+
+```bash
+conman --help
+```
+
+if you need some details about a specific command, you can run:
+
+```bash
+conman <command> --help
+```
+
 ---
 
 ## Troubleshoting
@@ -205,3 +214,7 @@ You may need to update your `$PATH` variable.
 
 
     This will add the conman executable to your `$PATH` variable.
+
+## Contributing
+
+If you want to contribute to this project, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
