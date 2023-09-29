@@ -53,15 +53,6 @@ def x_access():
 
 @asi
 @dataclass
-class DockerCompose(Builder):
-    container_name: str = "ContainerNameDockerCompose"
-    service_name: str = "main_service_name"
-    volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
-    pass
-
-
-@asi
-@dataclass
 class DockerComposeFile(Builder):
     version: str = "3.9"
     services: Builder = Builder()
@@ -90,6 +81,16 @@ class DockerComposeFile(Builder):
         """
 
         return getattr(self.services, service_name)
+
+
+@asi
+@dataclass
+class DockerCompose(Builder):
+    filename: str = "docker-compose.yml"
+    container_name: str = "ContainerNameDockerCompose"
+    service_name: str = "main_service_name"
+    volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
+    _docker_compose_file: DockerComposeFile = DockerComposeFile()
 
 
 @asi
@@ -123,7 +124,7 @@ class Build(Builder):
             Activates the display configuration.
     """
 
-    dockerfile: str = "./Dockerfile-user"
+    dockerfile: str = "./Dockerfile.user"
     context: str = "."
     args: List[str] = field(default_factory=lambda: [])
 
@@ -284,6 +285,15 @@ class Service(Builder):
         """
         [print(f"-> Add volume: {v}") for v in volumes]
         self.volumes += volumes
+
+    def activate_conda(self, conda_env_name):
+        """
+        Activates the conda configuration.
+
+        Returns:
+            None
+        """
+        self.build.add_arg("CONDA_ENV", f"{conda_env_name}")
 
 
 if __name__ == "__main__":

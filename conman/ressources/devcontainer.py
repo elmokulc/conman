@@ -14,6 +14,11 @@ class VSCode(Builder):
             "ms-python.vscode-pylance",
         ]
     )
+    _optional_attributes_: List[str] = field(
+        default_factory=lambda: [
+            "settings",
+        ]
+    )
 
 
 @asi
@@ -28,15 +33,26 @@ class DevContainer(Builder):
     overrideCommand: bool = True
     name: str = "devcontainer_name"
     initializeCommand: str = "echo 'Initializing devcontainer...'"
-    dockerComposeFile: str = str(Path("/.docker-compose.yml"))
+    dockerComposeFile: str = str(Path("./docker-compose.yml"))
     service: str = "main_service_name"
     workspaceFolder: str = "/workspace"
     shutdownAction: str = "stopCompose"
     customizations: Customizations = field(default_factory=Customizations)
     postCreateCommand: str = "echo 'Post create command...'"
     postStartCommand: str = "echo 'Post start command...'"
-    # image: Optional[str] = None
-    # features: Optional[Dict[str, Dict[str, Any]]] = None
+
+    _optional_attributes_: List[str] = field(
+        default_factory=lambda: [
+            "overrideCommand",
+            "name",
+            "initializeCommand",
+            "dockerComposeFile",
+            "service",
+            "shutdownAction",
+            "postCreateCommand",
+            "postStartCommand",
+        ]
+    )
 
     __private_class_lib__: Dict = field(
         default_factory=lambda: {
@@ -46,7 +62,13 @@ class DevContainer(Builder):
     )
 
     def dump_devcontainerjson_file(self, filename: str = "devcontainer.json"):
-        self.dump_to_json(filename, empty=True, none=True)
+        self.dump_to_json(
+            filename,
+            rm_private=True,
+            rm_optional=False,
+            rm_empty=True,
+            rm_none=True,
+        )
 
 
 if __name__ == "__main__":
