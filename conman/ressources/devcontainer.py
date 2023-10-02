@@ -7,7 +7,17 @@ from conman.io import asi, Builder
 @asi
 @dataclass
 class VSCode(Builder):
-    settings: Dict[str, Any] = field(default_factory=lambda: {})
+    settings: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "terminal.integrated.defaultProfile.linux": "bash",
+            "terminal.integrated.profiles.linux": {
+                "bash (container default)": {
+                    "path": "/bin/bash",
+                    "overrideName": True,
+                }
+            },
+        }
+    )
     extensions: List[str] = field(
         default_factory=lambda: [
             "ms-python.python",
@@ -15,16 +25,18 @@ class VSCode(Builder):
         ]
     )
     _optional_attributes_: List[str] = field(
-        default_factory=lambda: [
-            "settings",
-        ]
+        default_factory=lambda: ["settings", "extensions"]
     )
 
 
 @asi
 @dataclass
 class Customizations(Builder):
-    vscode: VSCode = field(default_factory=VSCode)
+    vscode: VSCode = VSCode()
+
+    __private_class_lib__: Dict = field(
+        default_factory=lambda: {"vscode": VSCode}
+    )
 
 
 @asi
@@ -37,7 +49,7 @@ class DevContainer(Builder):
     service: str = "main_service_name"
     workspaceFolder: str = "/workspace"
     shutdownAction: str = "stopCompose"
-    customizations: Customizations = field(default_factory=Customizations)
+    customizations: Customizations = Customizations()
     postCreateCommand: str = "echo 'Post create command...'"
     postStartCommand: str = "echo 'Post start command...'"
 
@@ -66,11 +78,11 @@ class DevContainer(Builder):
             filename,
             rm_private=True,
             rm_optional=False,
-            rm_empty=True,
-            rm_none=True,
+            rm_empty=False,
+            rm_none=False,
         )
 
 
 if __name__ == "__main__":
     devcontainer = DevContainer()
-    devcontainer.dump_to_json(filename="devcontainer.json")
+    devcontainer.dump_devcontainerjson_file(filename="devcontainer.json")
