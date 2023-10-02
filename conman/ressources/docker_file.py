@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 
 def manage_conda_env_file(
@@ -118,14 +119,15 @@ class DockerFile:
 
     """
 
-    def __init__(self):
+    def __init__(self, img_basename: str, conda_environment: object = None):
         """
         Initializes a new instance of the DockerFile class.
 
         Returns:
             None
         """
-
+        self.img_basename: str = img_basename
+        self.conda_environment: object = conda_environment
         self.instructions = []
 
     def add(self, cmds, arguments, comments=""):
@@ -187,18 +189,17 @@ class DockerFile:
             None
         """
 
-        with open(filename, "w") as file:
-            file.writelines(
+        with open(filename, "w") as f:
+            f.writelines(
                 instruction.generate() for instruction in self.instructions
             )
         print(f"Generated {filename.split('/')[-1]} at: \t {filename}")
+        return self
 
-    def default_debian_root_instruction(
-        self, base_image: str = "ubuntu:20.04", conda_obj: object = None
-    ):
+    def default_debian_root_instruction(self):
         self.add(
             "FROM",
-            f"{base_image}",
+            f"{self.img_basename}",
             comments="Source image",
         )
 
@@ -243,13 +244,13 @@ class DockerFile:
         self.add("RUN", "apt-get clean", comments="Cleaning apt cache")
 
         # Conda settings and installation
-        if conda_obj:
+        if self.conda_environment:
             # Add conda arguments
             self.add(
                 "ARG",
                 [
-                    f"CONDA_DIRECTORY={conda_obj.directory}",
-                    f"CONDA_ENV_NAME={conda_obj.env_name}",
+                    f"CONDA_DIRECTORY={self.conda_environment.directory}",
+                    f"CONDA_ENV_NAME={self.conda_environment.env_name}",
                 ],
                 comments="CONDA ARGS",
             )
@@ -295,13 +296,14 @@ class DockerFile:
             )
 
             manage_conda_env_file(
-                conda_obj.environment_file, conda_obj.env_name
+                self.conda_environment.environment_file,
+                self.conda_environment.env_name,
             )
 
             self.add(
                 ["COPY", "RUN"],
                 [
-                    f"{conda_obj.environment_file} /tmp/environment.yml",
+                    f"{self.conda_environment.environment_file} /tmp/environment.yml",
                     "umask 000 && \ \n\tconda update -n base conda && \ \n\tconda create -y -n $CONDA_ENV_NAME && \ \n\tconda env update --name $CONDA_ENV_NAME --file /tmp/environment.yml --prune ",
                 ],
                 comments="Conda env creation",
@@ -318,12 +320,12 @@ class DockerFile:
 
     def default_user_instruction(
         self,
-        base_name: str = "userImgName:userImgTag",
         graphical: bool = False,
-        conda_obj: object = None,
     ):
 
-        self.add("ARG", f"BASE_IMAGE={base_name}", comments="ARG BASE_IMAGE")
+        self.add(
+            "ARG", f"BASE_IMAGE={self.img_basename}", comments="ARG BASE_IMAGE"
+        )
         self.add("FROM", "${BASE_IMAGE}", comments="FROM ${BASE_IMAGE}")
         self.add(
             "ARG",
@@ -367,7 +369,7 @@ class DockerFile:
         )
 
         # Conda settings and installation
-        if conda_obj:
+        if self.conda_environment:
             self.add(
                 ["ARG", "ENV", "ENV"],
                 [
@@ -397,3 +399,39 @@ class DockerFile:
             ],
             comments="END INSTRUCTIONS",
         )
+
+    def dump_build_script(
+        self,
+        filename: str = "run.sh",
+        enable_nvidia_gpu: bool = False,
+    ):
+        build_args = []
+
+        if enable_nvidia_gpu:
+            proc = subprocess.Popen(
+                [
+                    "nvidia-container-cli info | grep Architecture | grep -oe '\([0-9.]*\)'"
+                ],
+                stdout=subprocess.PIPE,
+                shell=True,
+            )
+            (out, err) = proc.communicate()
+            compute_capability = out.decode("utf-8").strip()
+            print("GPU COMPUTE CAPABILITY:", compute_capability)
+            build_args.append(f"COMPUTE_CAPABILITY={compute_capability}")
+
+        if self.conda_environment:
+            build_args.append(
+                f"CONDA_ENV_NAME={self.conda_environment.env_name}"
+            )
+            build_args.append(
+                f"CONDA_DIRECTORY={self.conda_environment.directory}"
+            )
+
+        cmd = f"docker build -f ./Dockerfile.root -t {self.img_basename}"
+        for arg in build_args:
+            cmd += f" --build-arg {arg}"
+        cmd += " ."
+
+        with open(filename, "w") as file:
+            file.write(cmd)

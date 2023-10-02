@@ -73,11 +73,11 @@ class Image(Builder):
 
     def to_dockerfile(self, filename: str = "Dockerfile") -> str:
         print("--- Build root Dockerfile ---")
-        docker_file = DockerFile()
-        docker_file.default_debian_root_instruction(
-            base_image=f"{self.from_image.name}:{self.from_image.tag}",
-            conda_obj=self.conda_environment,
+        docker_file = DockerFile(
+            img_basename=f"{self.from_image.name}:{self.from_image.tag}",
+            conda_environment=self.conda_environment,
         )
+        docker_file.default_debian_root_instruction()
         if self.extra_instructions:
             print("Adding root extra instructions to Dockerfile...")
             root_instruction = Instructions.from_lines(
@@ -85,7 +85,10 @@ class Image(Builder):
             )
             docker_file.add_instruction(root_instruction)
 
-        docker_file.generate(filename=filename)
+        path = os.path.dirname(filename)
+        docker_file.generate(filename=filename).dump_build_script(
+            filename=path + "/build_root_img.sh"
+        )
 
 
 @asi
@@ -98,12 +101,11 @@ class ImageUser(Builder):
         self, filename: str = "Dockerfile", graphical=False
     ) -> str:
         print("--- Build user Dockerfile ---")
-        docker_file = DockerFile()
-        docker_file.default_user_instruction(
-            base_name=f"{self.__private_root_img__.name}:{self.__private_root_img__.tag}",
-            graphical=graphical,
-            conda_obj=self.__private_root_img__.conda_environment,
+        docker_file = DockerFile(
+            img_basename=f"{self.__private_root_img__.name}:{self.__private_root_img__.tag}",
+            conda_environment=self.__private_root_img__.conda_environment,
         )
+        docker_file.default_user_instruction(graphical=graphical)
 
         if self.__private_root_img__.conda_environment is not None:
             print("Adding conda environment to Dockerfile...")
@@ -246,7 +248,6 @@ class Config(Builder):
                 attr = Config.deletion(obj=attr, dic=dic[key])
                 setattr(instance, key, attr)
 
-        # import ipdb ; ipdb.set_trace()
         return instance
 
     @staticmethod
@@ -298,20 +299,13 @@ class Config(Builder):
                 os.mkdir(".devcontainer")
                 print("Directory .devcontainer created")
 
-            self.build_devcontainer_json()
-        else:
-            print("No devcontainer section in config file")
-
-    def build_devcontainer_json(self) -> None:
-        # create devcontainer.json file
-        if not os.path.isfile(".devcontainer/devcontainer.json"):
             print("Creating devcontainer.json file...")
+            # create devcontainer.json file
             self.container.devcontainer.dump_devcontainerjson_file(
                 filename=f"{self.wdir}devcontainer.json"
             )
-            # print("devcontainer.json file created")
         else:
-            print("devcontainer.json file already exists")
+            print("No devcontainer section in config file")
 
     def build_dockercompose_file(self) -> None:
         # Add main_container service
@@ -343,15 +337,10 @@ class Config(Builder):
             )
 
         # create docker-compose.yml file
-        if not os.path.isfile(f"{self.container.docker_compose.filename}"):
-            self.container.docker_compose._docker_compose_file.dump_to_yml(
-                filename=f"{self.wdir}{self.container.docker_compose.filename}",
-                rm_private=True,
-            )
-        else:
-            print(
-                f"{self.wdir}{self.container.docker_compose.filename} file already exists"
-            )
+        self.container.docker_compose._docker_compose_file.dump_to_yml(
+            filename=f"{self.wdir}{self.container.docker_compose.filename}",
+            rm_private=True,
+        )
 
     def build_dockerfile_user(self) -> None:
         def _check_graphical():
@@ -362,23 +351,17 @@ class Config(Builder):
                 return False
 
         # create Dockerfile.user file
-        if not os.path.isfile("Dockerfile.user"):
-            self.images.user.to_dockerfile(
-                filename=f"{self.wdir}Dockerfile.user",
-                graphical=_check_graphical(),
-            )
-        else:
-            print(f"{self.wdir}Dockerfile.user file already exists")
+        self.images.user.to_dockerfile(
+            filename=f"{self.wdir}Dockerfile.user",
+            graphical=_check_graphical(),
+        )
 
     def build_dockerfile_root(self) -> None:
         # create Dockerfile.root file
         if self.images.root.generate:
-            if not os.path.isfile("Dockerfile.root"):
-                self.images.root.to_dockerfile(
-                    filename=f"{self.wdir}Dockerfile.root"
-                )
-            else:
-                print(f"{self.wdir}Dockerfile.root file already exists")
+            self.images.root.to_dockerfile(
+                filename=f"{self.wdir}Dockerfile.root"
+            )
 
 
 def build():
