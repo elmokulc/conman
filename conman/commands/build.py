@@ -71,6 +71,13 @@ class Image(Builder):
     conda_environment: CondaEnvironment = CondaEnvironment()
     extra_instructions: List[str] = field(default_factory=lambda: [])
 
+    # _optional_attributes_: List[str] = field(
+    #     default_factory=lambda: [
+    #         "from_image",
+    #         "extra_instructions"
+    #     ]
+    # )
+
     def to_dockerfile(self, filename: str = "Dockerfile") -> str:
         print("--- Build root Dockerfile ---")
         docker_file = DockerFile(
@@ -87,7 +94,8 @@ class Image(Builder):
 
         path = os.path.dirname(filename)
         docker_file.generate(filename=filename).dump_build_script(
-            filename=path + "/build_root_img.sh"
+            filename=path + "/build_root_img.sh",
+            enable_nvidia_gpu=self.__parent__.__parent__.check_graphical(),
         )
 
 
@@ -170,6 +178,11 @@ class Container(Builder):
     )
 
     def __post_init__(self):
+        self.docker_compose.__parent__ = self
+        self.devcontainer.__parent__ = self
+        self.graphical.__parent__ = self
+        self.gpu.__parent__ = self
+
         self.devcontainer.service = self.docker_compose.service_name
         self.devcontainer.dockerComposeFile = self.docker_compose.filename
 
@@ -197,6 +210,10 @@ class Images(Builder):
             "user": ImageUser,
         }
     )
+
+    def __post_init__(self):
+        self.user.__parent__ = self
+        self.root.__parent__ = self
 
 
 @asi
@@ -228,6 +245,8 @@ class Config(Builder):
 
     def __post_init__(self):
         self._check_images()
+        self.images.__parent__ = self
+        self.container.__parent__ = self
 
     def _check_images(self):
         # Update user image definition
@@ -288,8 +307,9 @@ class Config(Builder):
 
             print("Project Building done successfully")
         except Exception as e:
-            print("Project Building failed")
-            logging.exception(e)
+            print("Project Building failed\n", e)
+            if DEBUG:
+                logging.exception(e)
 
     def build_devcontainer(self) -> None:
         if self.container.devcontainer is not None:
@@ -343,17 +363,11 @@ class Config(Builder):
         )
 
     def build_dockerfile_user(self) -> None:
-        def _check_graphical():
-            if self.container.graphical is not None:
-                if self.container.graphical.protocol == "x11":
-                    return True
-            else:
-                return False
 
         # create Dockerfile.user file
         self.images.user.to_dockerfile(
             filename=f"{self.wdir}Dockerfile.user",
-            graphical=_check_graphical(),
+            graphical=self.check_graphical(),
         )
 
     def build_dockerfile_root(self) -> None:
@@ -362,6 +376,13 @@ class Config(Builder):
             self.images.root.to_dockerfile(
                 filename=f"{self.wdir}Dockerfile.root"
             )
+
+    def check_graphical(self) -> bool:
+        if self.container.graphical is not None:
+            if self.container.graphical.protocol == "x11":
+                return True
+        else:
+            return False
 
 
 def build():

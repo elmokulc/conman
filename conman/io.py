@@ -40,7 +40,12 @@ def asi(subclass):
 
 
 class Builder:
-    def __init__(self, __private_class_lib__: Dict = {}, **kwargs) -> None:
+    def __init__(
+        self,
+        __private_class_lib__: Dict = {},
+        __parent__: Optional[Any] = None,
+        **kwargs,
+    ) -> None:
 
         self.__private_class_lib__: Dict = __private_class_lib__
 
@@ -292,3 +297,20 @@ class Builder:
 
     def add_field(self, field_name, field_value):
         setattr(self, field_name, field_value)
+
+    # @staticmethod
+    def parent_linking(self) -> None:
+        """
+        Links the parent object to the child object.
+
+        Args:
+            obj (object): The child object.
+
+        Returns:
+            None
+        """
+        attributes = self.__dict__
+        for attr, value in attributes.items():
+            if isinstance(value, Builder) and attr != "__parent__":
+                value.__dict__.update({"__parent__": self})
+                value.parent_linking()

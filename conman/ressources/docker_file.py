@@ -417,8 +417,13 @@ class DockerFile:
             )
             (out, err) = proc.communicate()
             compute_capability = out.decode("utf-8").strip()
-            print("GPU COMPUTE CAPABILITY:", compute_capability)
-            build_args.append(f"COMPUTE_CAPABILITY={compute_capability}")
+            if len(compute_capability) != 0:
+                build_args.append(f"COMPUTE_CAPABILITY={compute_capability}")
+            else:
+                msg = "No GPU found, please check :\n"
+                msg += "-> nvidia-container-toolkit installation\n"
+                msg += "-> cuda drivers installation"
+                raise ValueError(msg)
 
         if self.conda_environment:
             build_args.append(
