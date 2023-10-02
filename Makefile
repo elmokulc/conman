@@ -6,6 +6,10 @@ dev-install:
 	pip install --editable . ; \
 	$(MAKE) clean
 
+reinstall:
+	$(MAKE) remove
+	$(MAKE) dev-install
+
 clean:
 	rm -rf build conman.egg-info dist
 
