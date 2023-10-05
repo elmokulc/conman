@@ -402,6 +402,7 @@ class DockerFile:
 
     def dump_build_script(
         self,
+        basename: str,
         filename: str = "run.sh",
         enable_nvidia_gpu: bool = False,
     ):
@@ -428,7 +429,7 @@ class DockerFile:
                 f"CONDA_DIRECTORY={self.conda_environment.directory}"
             )
 
-        cmd = f"docker build -f ./Dockerfile.root -t {self.img_basename}"
+        cmd = f"docker build -f ./Dockerfile.root -t {basename}"
         for arg in build_args:
             cmd += f" --build-arg {arg}"
         cmd += " ."

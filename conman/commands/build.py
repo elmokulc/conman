@@ -87,7 +87,8 @@ class Image(Builder):
 
         path = os.path.dirname(filename)
         docker_file.generate(filename=filename).dump_build_script(
-            filename=path + "/build_root_img.sh"
+            filename=path + "/build_root_img.sh",
+            basename=f"{self.name}:{self.tag}",
         )
 
 
