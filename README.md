@@ -174,6 +174,17 @@ conman <command> --help
 
 ---
 
+## Root image generation
+
+In case you need to generate a root image, conman will generate a build script for you name `build_root_img.sh` in the same folder that `Dockerfile.root`.
+Unfortunalety, you will need to set execution permissions and run this script manually.
+
+To set proper permissions and run the script:
+
+```bash
+    chmod +x build_root_img.sh && ./build_root_img.sh
+```
+
 ## Troubleshoting
 
 - According to your system configuration and yours permissions, the location of the entry point of conman may change.
