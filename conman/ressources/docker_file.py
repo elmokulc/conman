@@ -247,12 +247,12 @@ class DockerFile:
         if self.conda_environment:
             # Add conda arguments
             self.add(
-                "ARG",
+                "ENV",
                 [
                     f"CONDA_DIRECTORY={self.conda_environment.directory}",
                     f"CONDA_ENV_NAME={self.conda_environment.env_name}",
                 ],
-                comments="CONDA ARGS",
+                comments="CONDA ENV",
             )
 
             # Define conda environment variables
@@ -420,14 +420,6 @@ class DockerFile:
             compute_capability = out.decode("utf-8").strip()
             print("GPU COMPUTE CAPABILITY:", compute_capability)
             build_args.append(f"COMPUTE_CAPABILITY={compute_capability}")
-
-        if self.conda_environment:
-            build_args.append(
-                f"CONDA_ENV_NAME={self.conda_environment.env_name}"
-            )
-            build_args.append(
-                f"CONDA_DIRECTORY={self.conda_environment.directory}"
-            )
 
         cmd = f"docker build -f ./Dockerfile.root -t {basename}"
         for arg in build_args:

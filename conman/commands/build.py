@@ -226,6 +226,7 @@ class Config(Builder):
             "rm_none": False,
         }
     )
+    _workdir: str = os.getcwd() + "/"
 
     def __post_init__(self):
         self._check_images()
