@@ -12,6 +12,7 @@ import yaml
 from dataclasses import dataclass, field
 from conman.ressources.devcontainer import DevContainer
 from conman.ressources.docker_compose import DockerComposeFile, DockerCompose
+from conman.ressources.docker_compose import get_user_id_data
 from conman.ressources.docker_file import DockerFile, Instructions
 import logging
 
@@ -21,7 +22,7 @@ import logging
 class CondaEnvironment(Builder):
     directory: Path = "/opt/conda"
     env_name: str = "myenv"
-    environment_file: Path = "./environment.yml"
+    env_filename: Path = "environment.yml"
 
     def generate_environment_file(
         self,
@@ -33,12 +34,12 @@ class CondaEnvironment(Builder):
         Manage conda environment.yml file
         if file exists do nothing else create an empty file
         Args:
-            self.environment_file (str): environment.yml file path
+            self.env_filename (str): environment.yml file path
         """
 
-        if not os.path.isfile(self.environment_file):
-            print(f"Creating conda env file at: \t{self.environment_file}")
-            with open(self.environment_file, "w") as file:
+        if not os.path.isfile(self.env_filename):
+            print(f"Creating conda env file at: \t{self.env_filename}")
+            with open(self.env_filename, "w") as file:
                 file.write("name: " + self.env_name + "\n")
 
                 # channels
@@ -56,7 +57,7 @@ class CondaEnvironment(Builder):
                 for pip_package in pip_packages:
                     file.write("    - " + pip_package + "\n")
         else:
-            print(f"Conda env file exists at: \t{self.environment_file}")
+            print(f"Conda env file exists at: \t{self.env_filename}")
 
 
 @asi
@@ -73,9 +74,11 @@ class Image(Builder):
 
     def to_dockerfile(self, filename: str = "Dockerfile") -> str:
         print("--- Build root Dockerfile ---")
+        path = os.path.dirname(filename) + "/"
         docker_file = DockerFile(
             img_basename=f"{self.from_image.name}:{self.from_image.tag}",
             conda_environment=self.conda_environment,
+            wdir=path,
         )
         docker_file.default_debian_root_instruction()
         if self.extra_instructions:
@@ -85,9 +88,8 @@ class Image(Builder):
             )
             docker_file.add_instruction(root_instruction)
 
-        path = os.path.dirname(filename)
         docker_file.generate(filename=filename).dump_build_script(
-            filename=path + "/build_root_img.sh",
+            filename=path + "build_root_img.sh",
             basename=f"{self.name}:{self.tag}",
         )
 
@@ -306,6 +308,11 @@ class Config(Builder):
             self.container.devcontainer.dump_devcontainerjson_file(
                 filename=f"{self.wdir}devcontainer.json"
             )
+            self.container.devcontainer.dump_envFile(
+                username=get_user_id_data()["USER_NAME"],
+                filename=f"{os.path.abspath(os.path.join(self.wdir, os.pardir))}/.env",
+            )
+
         else:
             print("No devcontainer section in config file")
 

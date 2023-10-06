@@ -119,7 +119,12 @@ class DockerFile:
 
     """
 
-    def __init__(self, img_basename: str, conda_environment: object = None):
+    def __init__(
+        self,
+        img_basename: str,
+        conda_environment: object = None,
+        wdir: str = "./",
+    ):
         """
         Initializes a new instance of the DockerFile class.
 
@@ -129,6 +134,7 @@ class DockerFile:
         self.img_basename: str = img_basename
         self.conda_environment: object = conda_environment
         self.instructions = []
+        self.wdir = wdir
 
     def add(self, cmds, arguments, comments=""):
         """
@@ -296,14 +302,14 @@ class DockerFile:
             )
 
             manage_conda_env_file(
-                self.conda_environment.environment_file,
+                self.wdir + self.conda_environment.env_filename,
                 self.conda_environment.env_name,
             )
 
             self.add(
                 ["COPY", "RUN"],
                 [
-                    f"{self.conda_environment.environment_file} /tmp/environment.yml",
+                    f"{self.wdir+self.conda_environment.env_filename} /tmp/environment.yml",
                     "umask 000 && \ \n\tconda update -n base conda && \ \n\tconda create -y -n $CONDA_ENV_NAME && \ \n\tconda env update --name $CONDA_ENV_NAME --file /tmp/environment.yml --prune ",
                 ],
                 comments="Conda env creation",

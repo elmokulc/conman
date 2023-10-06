@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Union, Dict, Any
 from pathlib import Path
 from conman.io import asi, Builder
+from conman.utils import get_random_hash_str
 
 
 @asi
@@ -81,6 +82,12 @@ class DevContainer(Builder):
             rm_empty=False,
             rm_none=False,
         )
+
+    def dump_envFile(self, username, filename: str = "../.env"):
+        hash_value = get_random_hash_str()
+        VAR = f"COMPOSE_PROJECT_NAME={username}-{hash_value}"
+
+        open(filename, "w").write(VAR)
 
 
 if __name__ == "__main__":
