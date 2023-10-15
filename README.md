@@ -10,11 +10,13 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 ## Requirements 
 
 - Unix (Linux, macOS) based operating system (WSL workaround for Windows)
-- [Docker 24.0+](https://docs.docker.com/get-docker/) and [Docker-compose 2.20+](https://docs.docker.com/compose/)
+- A container engine ans its composer tool: 
+  - [Docker 24.0+](https://docs.docker.com/get-docker/) and [Docker-compose 2.20+](https://docs.docker.com/compose/)
+  - [Podman 4.0+](https://podman.io/getting-started/installation) and [Podman-compose 1.0.6+](https://docs.podman.io/en/latest/markdown/podman-compose.1.html)
 - [Python 3.8+](https://www.python.org/downloads/)
 - Python modules :
     - [pip 21.0.1+](https://pip.pypa.io/en/stable/installation/) (Need setuptools integration)
-
+    - [pyyaml 5.4.1+](https://pypi.org/project/PyYAML/)
 ---
 
 ## Installation
@@ -22,12 +24,10 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 - Install conman using pip:
 
     ```bash
-    pip install git+https://github.com/elmokulc/conman.git@0.0.1
+    pip install conman-tool
     ```
 
-    **NB**: Replace `<branch_name>` by the name of the branch you want to install.
-
-    The current stable realease is `1.0`:
+    You can also install conman from source, tcd he current stable realease is `1.0`:
 
     ```bash
     pip install git+https://github.com/elmokulc/conman.git@1.0
@@ -149,11 +149,16 @@ container:
         .
         ├── .conman-config.yml
         ├── .devcontainer
+        │   ├── build_root_img.sh
         │   ├── devcontainer.json
         │   ├── docker-compose.yml
         │   ├── Dockerfile.root
-        │   └── Dockerfile.user
-        └── environment.yml
+        │   ├── Dockerfile.user
+        │   ├── initializeCommand.sh
+        │   ├── postCreateCommand.sh
+        │   └── postStartCommand.sh
+        ├── environment.yml
+        └── .env
 
         1 directory, 6 files  
     ``` 
