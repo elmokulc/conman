@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Union, Dict, Any
 from pathlib import Path
-from conman.io import asi, Builder
+from conman.io import asi, Builder, create_directory, check_file_exist
 from conman.utils import get_random_hash_str
+from conman.constants import CONFIG_DIR
 
 
 @asi
@@ -90,33 +91,42 @@ class DevContainer(Builder):
         open(filename, "w").write(VAR)
 
     def empty_shell_script(self, filename, header: str = ""):
-        shebang = "#!/bin/bash"
-        header = "# " + header if not header.startswith("#") else header
-        header = header + "\n" if not header.endswith("\n") else header
-        content = (
-            shebang + "\n" + header + "\n" * 2 + "# <Write your commands here>"
-        )
-        open(filename, "w").write(content)
+        create_directory(filename)
+        if not check_file_exist(filename):
+            shebang = "#!/bin/bash"
+            header = "# " + header if not header.startswith("#") else header
+            header = header + "\n" if not header.endswith("\n") else header
+            content = (
+                shebang
+                + "\n"
+                + header
+                + "\n" * 2
+                + "# <Write your commands here>"
+            )
+            open(filename, "w").write(content)
+        else:
+            print(f"Warning: {filename} already exists")
+            print("Skipping...")
 
     def dump_postCreateCommand_script(
-        self, wdir: str = "./", filename: str = "/postCreateCommand.sh"
+        self, filename: str = CONFIG_DIR + "scripts/" + "postCreateCommand.sh"
     ):
-        self.empty_shell_script(wdir + filename, header="Post create command")
+        self.empty_shell_script(filename, header="Post create command")
 
     def dump_initializeCommand_script(
-        self, wdir: str = "./", filename: str = "/initializeCommand.sh"
+        self, filename: str = CONFIG_DIR + "scripts/" + "initializeCommand.sh"
     ):
-        self.empty_shell_script(wdir + filename, header="Initialize command")
+        self.empty_shell_script(filename, header="Initialize command")
 
     def dump_postStartCommand_script(
-        self, wdir: str = "./", filename: str = "/postStartCommand.sh"
+        self, filename: str = CONFIG_DIR + "scripts/" + "postStartCommand.sh"
     ):
-        self.empty_shell_script(wdir + filename, header="Post start command")
+        self.empty_shell_script(filename, header="Post start command")
 
-    def dump_optionals_scripts(self, wdir):
-        self.dump_postCreateCommand_script(wdir=wdir)
-        self.dump_initializeCommand_script(wdir=wdir)
-        self.dump_postStartCommand_script(wdir=wdir)
+    def dump_optionals_scripts(self):
+        self.dump_postCreateCommand_script()
+        self.dump_initializeCommand_script()
+        self.dump_postStartCommand_script()
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import os
 from conman import utils
-from conman.io import asi, Builder
+from conman.io import asi, Builder, create_directory, check_file_exist
 import conman.ressources as rsrc
 from conman.constants import *
 import yaml
@@ -22,10 +22,11 @@ import logging
 class CondaEnvironment(Builder):
     directory: Path = "/opt/conda"
     env_name: str = "myenv"
-    env_filename: Path = "environment.yml"
+    env_filename: Path = f"{CONFIG_DIR}conda/environment.yml"
 
     def generate_environment_file(
         self,
+        filename: str = None,
         pip_packages=["scipy", "opencv-python", "opencv-contrib-python"],
         conda_packages=["python=3.8", "pip", "numpy"],
         channels=["conda-forge", "anaconda", "defaults"],
@@ -37,8 +38,12 @@ class CondaEnvironment(Builder):
             self.env_filename (str): environment.yml file path
         """
 
+        if filename is not None:
+            self.env_filename = filename
+
         if not os.path.isfile(self.env_filename):
             print(f"Creating conda env file at: \t{self.env_filename}")
+            create_directory(self.env_filename)
             with open(self.env_filename, "w") as file:
                 file.write("name: " + self.env_name + "\n")
 
@@ -71,8 +76,13 @@ class Image(Builder):
     )
     conda_environment: CondaEnvironment = CondaEnvironment()
     extra_instructions: List[str] = field(default_factory=lambda: [])
+    __private_class_lib__: Dict = field(
+        default_factory=lambda: {"conda_environment": CondaEnvironment}
+    )
 
-    def to_dockerfile(self, filename: str = "Dockerfile") -> str:
+    def to_dockerfile(
+        self, filename: str = "Dockerfile", container_engine: str = "Docker"
+    ) -> str:
         print("--- Build root Dockerfile ---")
         path = os.path.dirname(filename) + "/"
         docker_file = DockerFile(
@@ -91,6 +101,7 @@ class Image(Builder):
         docker_file.generate(filename=filename).dump_build_script(
             filename=path + "build_root_img.sh",
             basename=f"{self.name}:{self.tag}",
+            container_engine=container_engine,
         )
 
 
@@ -157,7 +168,9 @@ class Gpu(Builder):
 @asi
 @dataclass
 class Container(Builder):
-    docker_compose: DockerCompose = DockerCompose()
+    # _engine_name =
+    engine: str = "docker"
+    compose: DockerCompose = DockerCompose()
     devcontainer: Optional[DevContainer] = DevContainer()
     graphical: Graphical = Graphical()
     gpu: Gpu = Gpu()
@@ -168,13 +181,14 @@ class Container(Builder):
             "graphical": Graphical,
             "devcontainer": DevContainer,
             "conda_environment": CondaEnvironment,
-            "docker_compose": DockerCompose,
+            "compose": DockerCompose,
         }
     )
 
     def __post_init__(self):
-        self.devcontainer.service = self.docker_compose.service_name
-        self.devcontainer.dockerComposeFile = self.docker_compose.filename
+        if self.devcontainer is not None:
+            self.devcontainer.service = self.compose.service_name
+            self.devcontainer.dockerComposeFile = self.compose.filename
 
 
 @asi
@@ -217,7 +231,7 @@ class Config(Builder):
             "graphical": Graphical,
             "devcontainer": DevContainer,
             "conda_environment": CondaEnvironment,
-            "docker_compose": DockerCompose,
+            "compose": DockerCompose,
         }
     )
     _dump_options: Dict = field(
@@ -312,20 +326,20 @@ class Config(Builder):
                 username=get_user_id_data()["USER_NAME"],
                 filename=f"{os.path.abspath(os.path.join(self.wdir, os.pardir))}/.env",
             )
-            self.container.devcontainer.dump_optionals_scripts(wdir=self.wdir)
+            self.container.devcontainer.dump_optionals_scripts()
 
         else:
             print("No devcontainer section in config file")
 
     def build_dockercompose_file(self) -> None:
         # Add main_container service
-        self.container.docker_compose._docker_compose_file.add_service(
-            service_name=self.container.docker_compose.service_name,
-            container_name=self.container.docker_compose.container_name,
+        self.container.compose._docker_compose_file.add_service(
+            service_name=self.container.compose.service_name,
+            container_name=self.container.compose.container_name,
         )
         target_service = (
-            self.container.docker_compose._docker_compose_file.get_service(
-                service_name=self.container.docker_compose.service_name
+            self.container.compose._docker_compose_file.get_service(
+                service_name=self.container.compose.service_name
             )
         )
 
@@ -334,7 +348,7 @@ class Config(Builder):
         if self.container.graphical is not None:
             target_service.activate_display()
         # Volume mounting
-        target_service.appending_volumes(self.container.docker_compose.volumes)
+        target_service.appending_volumes(self.container.compose.volumes)
 
         # Gpu enabling
         if self.container.gpu is not None:
@@ -347,8 +361,8 @@ class Config(Builder):
             )
 
         # create docker-compose.yml file
-        self.container.docker_compose._docker_compose_file.dump_to_yml(
-            filename=f"{self.wdir}{self.container.docker_compose.filename}",
+        self.container.compose._docker_compose_file.dump_to_yml(
+            filename=f"{self.wdir}{self.container.compose.filename}",
             rm_private=True,
         )
 
@@ -370,8 +384,11 @@ class Config(Builder):
         # create Dockerfile.root file
         if self.images.root.generate:
             self.images.root.to_dockerfile(
-                filename=f"{self.wdir}Dockerfile.root"
+                filename=f"{self.wdir}Dockerfile.root",
+                container_engine=self.container.engine,
             )
+
+            self.images.root.conda_environment.generate_environment_file()
 
 
 def build():

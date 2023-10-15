@@ -1,35 +1,7 @@
 import os
 import subprocess
-
-
-def manage_conda_env_file(
-    envfile,
-    conda_env_name,
-    pip_packages=["scipy", "opencv-python", "opencv-contrib-python"],
-    conda_packages=["python=3.8", "pip", "numpy"],
-    channels=["conda-forge", "anaconda", "defaults"],
-):
-    """_summary_
-    Manage conda environment.yml file
-    if file exists do nothing else create an empty file
-    Args:
-        envfile (str): environment.yml file path
-    """
-
-    if not os.path.isfile(envfile):
-        print(f"Creating conda env file at: \t{envfile}")
-        open(envfile, "w").write("name: " + conda_env_name + "\n")
-        open(envfile, "a").write("channels: \n")
-        for channel in channels:
-            open(envfile, "a").write("  - " + channel + "\n")
-        open(envfile, "a").write("dependencies: \n")
-        for conda_package in conda_packages:
-            open(envfile, "a").write("  - " + conda_package + "\n")
-        open(envfile, "a").write("  - pip: \n")
-        for pip_package in pip_packages:
-            open(envfile, "a").write("    - " + pip_package + "\n")
-    else:
-        print(f"Conda env file exists at: \t{envfile}")
+from pathlib import Path
+from conman.constants import CONFIG_DIR
 
 
 class Instructions:
@@ -301,15 +273,16 @@ class DockerFile:
                 comments="Installing miniconda",
             )
 
-            manage_conda_env_file(
-                self.wdir + self.conda_environment.env_filename,
-                self.conda_environment.env_name,
-            )
+            conda_src_dir = Path(f"{CONFIG_DIR}conda/")
+            if self.wdir.endswith(".devcontainer/"):
+                conda_src_dir = Path(self.wdir).parent
+            else:
+                conda_src_dir = Path()
 
             self.add(
                 ["COPY", "RUN"],
                 [
-                    f"{self.wdir+self.conda_environment.env_filename} /tmp/environment.yml",
+                    f"{conda_src_dir / self.conda_environment.env_filename} /tmp/environment.yml",
                     "umask 000 && \ \n\tconda update -n base conda && \ \n\tconda create -y -n $CONDA_ENV_NAME && \ \n\tconda env update --name $CONDA_ENV_NAME --file /tmp/environment.yml --prune ",
                 ],
                 comments="Conda env creation",
@@ -410,6 +383,7 @@ class DockerFile:
         self,
         basename: str,
         filename: str = "run.sh",
+        container_engine: str = "docker",
         enable_nvidia_gpu: bool = False,
     ):
         build_args = []
@@ -427,7 +401,7 @@ class DockerFile:
             print("GPU COMPUTE CAPABILITY:", compute_capability)
             build_args.append(f"COMPUTE_CAPABILITY={compute_capability}")
 
-        cmd = f"docker build -f ./Dockerfile.root -t {basename}"
+        cmd = f"{container_engine} build -f ./Dockerfile.root -t {basename}"
         for arg in build_args:
             cmd += f" --build-arg {arg}"
         cmd += " ."
