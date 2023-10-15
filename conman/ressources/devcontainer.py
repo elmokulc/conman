@@ -46,14 +46,20 @@ class Customizations(Builder):
 class DevContainer(Builder):
     overrideCommand: bool = True
     name: str = "devcontainer_name"
-    initializeCommand: str = "echo 'Initializing devcontainer...'"
+    workspaceFolder: str = "/workspace/"
     dockerComposeFile: str = str(Path("./docker-compose.yml"))
     service: str = "main_service_name"
-    workspaceFolder: str = "/workspace"
     shutdownAction: str = "stopCompose"
     customizations: Customizations = Customizations()
-    postCreateCommand: str = "echo 'Post create command...'"
-    postStartCommand: str = "echo 'Post start command...'"
+    initializeCommand: str = f"cd {workspaceFolder}.conman/scripts && /bin/bash postCreateCommand.sh"
+    onCreateCommand: str = (
+        f"cd {workspaceFolder}.conman/scripts && /bin/bash onCreateCommand.sh"
+    )
+    updateContentCommand: str = f"cd {workspaceFolder}.conman/scripts && /bin/bash updateContentCommand.sh"
+    postCreateCommand: str = f"cd {workspaceFolder}.conman/scripts && /bin/bash postCreateCommand.sh"
+    postStartCommand: str = (
+        f"cd {workspaceFolder}.conman/scripts && /bin/bash postStartCommand.sh"
+    )
 
     _optional_attributes_: List[str] = field(
         default_factory=lambda: [
@@ -118,15 +124,28 @@ class DevContainer(Builder):
     ):
         self.empty_shell_script(filename, header="Initialize command")
 
+    def dump_onCreateCommand_script(
+        self, filename: str = CONFIG_DIR + "scripts/" + "onCreateCommand.sh"
+    ):
+        self.empty_shell_script(filename, header="On create command")
+
+    def dump_updateContentCommand_script(
+        self,
+        filename: str = CONFIG_DIR + "scripts/" + "updateContentCommand.sh",
+    ):
+        self.empty_shell_script(filename, header="Update content command")
+
     def dump_postStartCommand_script(
         self, filename: str = CONFIG_DIR + "scripts/" + "postStartCommand.sh"
     ):
         self.empty_shell_script(filename, header="Post start command")
 
     def dump_optionals_scripts(self):
-        self.dump_postCreateCommand_script()
         self.dump_initializeCommand_script()
+        self.dump_onCreateCommand_script()
+        self.dump_updateContentCommand_script()
         self.dump_postStartCommand_script()
+        self.dump_postCreateCommand_script()
 
 
 if __name__ == "__main__":

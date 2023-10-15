@@ -408,3 +408,8 @@ class DockerFile:
 
         with open(filename, "w") as file:
             file.write(cmd)
+
+        # For posix plateform apply chmod +x
+        if os.name == "posix":
+            os.chmod(filename, 0o755)
+        print(f"Generated {filename.split('/')[-1]} at: \t {filename}")
