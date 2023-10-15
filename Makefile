@@ -11,10 +11,10 @@ reinstall:
 	$(MAKE) dev-install
 
 clean:
-	rm -rf build conman.egg-info dist
+	rm -rf build conman_tool.egg-info dist
 
 remove:
-	pip uninstall -y conman
+	pip uninstall -y conman-tool
 
 sdist:
 	python setup.py sdist ; \
