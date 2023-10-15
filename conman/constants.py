@@ -3,4 +3,4 @@ import importlib.metadata
 
 CONFIG_FILE = ".conman-config.yml"
 
-VERSION = importlib.metadata.version("conman")
+VERSION = importlib.metadata.version("conman-tool")
