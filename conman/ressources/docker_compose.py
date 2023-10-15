@@ -296,7 +296,7 @@ class Service(Builder):
         Returns:
             None
         """
-        self.build.add_arg("CONDA_ENV", f"{conda_env_name}")
+        self.build.add_arg("CONDA_ENV_NAME", f"{conda_env_name}")
 
 
 if __name__ == "__main__":

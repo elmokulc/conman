@@ -89,6 +89,35 @@ class DevContainer(Builder):
 
         open(filename, "w").write(VAR)
 
+    def empty_shell_script(self, filename, header: str = ""):
+        shebang = "#!/bin/bash"
+        header = "# " + header if not header.startswith("#") else header
+        header = header + "\n" if not header.endswith("\n") else header
+        content = (
+            shebang + "\n" + header + "\n" * 2 + "# <Write your commands here>"
+        )
+        open(filename, "w").write(content)
+
+    def dump_postCreateCommand_script(
+        self, wdir: str = "./", filename: str = "/postCreateCommand.sh"
+    ):
+        self.empty_shell_script(wdir + filename, header="Post create command")
+
+    def dump_initializeCommand_script(
+        self, wdir: str = "./", filename: str = "/initializeCommand.sh"
+    ):
+        self.empty_shell_script(wdir + filename, header="Initialize command")
+
+    def dump_postStartCommand_script(
+        self, wdir: str = "./", filename: str = "/postStartCommand.sh"
+    ):
+        self.empty_shell_script(wdir + filename, header="Post start command")
+
+    def dump_optionals_scripts(self, wdir):
+        self.dump_postCreateCommand_script(wdir=wdir)
+        self.dump_initializeCommand_script(wdir=wdir)
+        self.dump_postStartCommand_script(wdir=wdir)
+
 
 if __name__ == "__main__":
     devcontainer = DevContainer()

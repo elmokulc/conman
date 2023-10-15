@@ -312,6 +312,7 @@ class Config(Builder):
                 username=get_user_id_data()["USER_NAME"],
                 filename=f"{os.path.abspath(os.path.join(self.wdir, os.pardir))}/.env",
             )
+            self.container.devcontainer.dump_optionals_scripts(wdir=self.wdir)
 
         else:
             print("No devcontainer section in config file")
