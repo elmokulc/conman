@@ -352,7 +352,8 @@ class Config(Builder):
 
         # Gpu enabling
         if self.container.gpu is not None:
-            target_service.deploy.activate_gpu()
+            if self.container.gpu.count > 0 and self.container.gpu.manufacturer == "nvidia":
+                target_service.deploy.activate_gpu()
 
         # Conda enabling
         if self.images.root.conda_environment is not None:
