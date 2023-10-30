@@ -68,16 +68,16 @@ class CondaEnvironment(Builder):
 @asi
 @dataclass
 class Image(Builder):
-    generate: bool = False
     name: str = "<root_image_name>"
     tag: str = "<root_image_tag>"
-    from_image: Dict[str, str] = field(
-        default_factory=lambda: {"name": "ubuntu", "tag": "20.04"}
-    )
     conda_environment: CondaEnvironment = CondaEnvironment()
     extra_instructions: List[str] = field(default_factory=lambda: [])
     __private_class_lib__: Dict = field(
         default_factory=lambda: {"conda_environment": CondaEnvironment}
+    )
+    generate: bool = False
+    from_image: Dict[str, str] = field(
+        default_factory=lambda: {"name": "ubuntu", "tag": "20.04"}
     )
 
     def to_dockerfile(
@@ -352,7 +352,10 @@ class Config(Builder):
 
         # Gpu enabling
         if self.container.gpu is not None:
-            if self.container.gpu.count > 0 and self.container.gpu.manufacturer == "nvidia":
+            if (
+                self.container.gpu.count > 0
+                and self.container.gpu.manufacturer == "nvidia"
+            ):
                 target_service.deploy.activate_gpu()
 
         # Conda enabling
