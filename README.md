@@ -49,17 +49,18 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
     conman init
     ```
 
-    This will create a file named `.conman-config.yml` in your project directory.
+    This will create a directory named `.conman` within the configuration file `conman-config.yml`.
 
     ```bash
     $ ➜ ~/my_project $ conman init
     $ ➜ ~/my_project $ tree -a
     .
-    └── .conman-config.yml
+    └── .conman
+        └── conman-config.yml
 
-    0 directories, 1 file
+    1 directory, 1 file
     ```
-- Edit the `.conman-config.yml` configuration file to fit your needs.
+- Edit the `conman-config.yml` configuration file to fit your needs.
 
 As example:
 
@@ -67,7 +68,7 @@ As example:
 # Images Settings
 images:
     root:
-        generate: false
+        generate: true
         name: BigFoot
         tag: latest
         from_image:
@@ -87,7 +88,8 @@ images:
 
 # Container Settings
 container:
-    docker_compose:
+    engine: docker # docker or podman
+    compose:
         container_name: ContainerNameDockerCompose
         service_name: main_service_name
         volumes:
@@ -138,29 +140,34 @@ container:
         Adding user extra instructions to Dockerfile...
         Generated Dockerfile.user at:    ~/my_project/.devcontainer/Dockerfile.user
         --- Build root Dockerfile ---
-        Creating conda env file at:     ./environment.yml
+        Creating conda env file at:     ~/my_project/.conman/environment.yml
         Adding root extra instructions to Dockerfile...
-        Generated Dockerfile.root at:    ~/my_project/.devcontainer/Dockerfile.root
+        Generated Dockerfile.root at:    ~/my_project/.conman/Dockerfile.root
         Project Building done successfully
     ```
     The project directory will now look like this:
     ```console
     $ ➜ ~/my_project $ tree -a
-        .
-        ├── .conman-config.yml
-        ├── .devcontainer
-        │   ├── build_root_img.sh
-        │   ├── devcontainer.json
-        │   ├── docker-compose.yml
-        │   ├── Dockerfile.root
-        │   ├── Dockerfile.user
-        │   ├── initializeCommand.sh
-        │   ├── postCreateCommand.sh
-        │   └── postStartCommand.sh
-        ├── environment.yml
-        └── .env
+    .
+    ├── .conman
+    │   ├── conda
+    │   │   └── environment.yml
+    │   ├── conman-config.yml
+    │   └── scripts
+    │       ├── initializeCommand.sh
+    │       ├── onCreateCommand.sh
+    │       ├── postCreateCommand.sh
+    │       ├── postStartCommand.sh
+    │       └── updateContentCommand.sh
+    ├── .devcontainer
+    │   ├── build_root_img.sh
+    │   ├── devcontainer.json
+    │   ├── docker-compose.yml
+    │   ├── Dockerfile.root
+    │   └── Dockerfile.user
+    └── .env
 
-        1 directory, 6 files  
+    4 directories, 13 files 
     ``` 
 
 ## Help
