@@ -354,7 +354,6 @@ class DockerFile:
                 [
                     "CONDA_ENV_NAME",
                     "CONDA_ENV_NAME=${CONDA_ENV_NAME}",
-                    "CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin/",
                 ],
                 comments="CONDA ARGS AND ENV VARIABLES",
             )
