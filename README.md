@@ -27,10 +27,10 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
     pip install conman-tool
     ```
 
-    You can also install conman from source, tcd he current stable realease is `1.1.2`:
+    You can also install conman from source, tcd he current stable realease is `1.1.3`:
 
     ```bash
-    pip install git+https://github.com/elmokulc/conman.git@1.1.2
+    pip install git+https://github.com/elmokulc/conman.git@1.1.3
     ```
 
 ---
