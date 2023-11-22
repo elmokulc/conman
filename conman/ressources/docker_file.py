@@ -276,7 +276,7 @@ class DockerFile:
             conda_src_dir = Path(f"./conda/")
             if len(self.conda_environment.env_filename.split("/")) > 1:
                 conda_src_dir = Path(
-                    f"{self.conda_environment.env_filename}"
+                    f"{conda_src_dir / self.conda_environment.env_filename.split('/')[-1]}"
                 )
             else:
                 conda_src_dir = conda_src_dir / self.conda_environment.env_filename
