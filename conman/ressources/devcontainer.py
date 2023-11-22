@@ -63,12 +63,14 @@ class DevContainer(Builder):
 
     _optional_attributes_: List[str] = field(
         default_factory=lambda: [
-            "overrideCommand",
-            "name",
+            # "overrideCommand",
+            # "name",
+            # "dockerComposeFile",
+            # "service",
+            # "shutdownAction",
             "initializeCommand",
-            "dockerComposeFile",
-            "service",
-            "shutdownAction",
+            "onCreateCommand",
+            "updateContentCommand",
             "postCreateCommand",
             "postStartCommand",
         ]
@@ -85,7 +87,7 @@ class DevContainer(Builder):
         self.dump_to_json(
             filename,
             rm_private=True,
-            rm_optional=False,
+            rm_optional=True,
             rm_empty=False,
             rm_none=False,
         )
