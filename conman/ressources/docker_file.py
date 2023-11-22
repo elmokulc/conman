@@ -273,16 +273,18 @@ class DockerFile:
                 comments="Installing miniconda",
             )
 
-            conda_src_dir = Path(f"{CONFIG_DIR}conda/")
-            if self.wdir.endswith(".devcontainer/"):
-                conda_src_dir = Path(self.wdir).parent
+            conda_src_dir = Path(f"./conda/")
+            if len(self.conda_environment.env_filename.split("/")) > 1:
+                conda_src_dir = Path(
+                    f"{self.conda_environment.env_filename}"
+                )
             else:
-                conda_src_dir = Path()
+                conda_src_dir = conda_src_dir / self.conda_environment.env_filename
 
             self.add(
                 ["COPY", "RUN"],
                 [
-                    f"{conda_src_dir / self.conda_environment.env_filename} /tmp/environment.yml",
+                    f"{conda_src_dir} /tmp/environment.yml",
                     "umask 000 && \ \n\tconda update -n base conda && \ \n\tconda create -y -n $CONDA_ENV_NAME && \ \n\tconda env update --name $CONDA_ENV_NAME --file /tmp/environment.yml --prune ",
                 ],
                 comments="Conda env creation",
