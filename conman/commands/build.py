@@ -22,7 +22,7 @@ import logging
 class CondaEnvironment(Builder):
     directory: Path = "/opt/conda"
     env_name: str = "myenv"
-    env_filename: Path = f"{CONFIG_DIR}conda/environment.yml"
+    env_filename: Path = f"./conda/environment.yml"
 
     def generate_environment_file(
         self,
