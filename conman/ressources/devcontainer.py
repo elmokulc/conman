@@ -3,7 +3,7 @@ from typing import List, Optional, Union, Dict, Any
 from pathlib import Path
 from conman.io import asi, Builder, create_directory, check_file_exist
 from conman.utils import get_random_hash_str
-from conman.constants import CONFIG_DIR
+from conman.constants import CONFIG_DIR, CONFIG_DIRNAME
 
 
 @asi
@@ -51,23 +51,23 @@ class DevContainer(Builder):
     service: str = "main_service_name"
     shutdownAction: str = "stopCompose"
     customizations: Customizations = Customizations()
-    initializeCommand: str = f"cd {workspaceFolder}.conman/scripts && /bin/bash postCreateCommand.sh"
+    initializeCommand: str = f"cd {CONFIG_DIR}scripts && /bin/bash initializeCommand.sh"
     onCreateCommand: str = (
-        f"cd {workspaceFolder}.conman/scripts && /bin/bash onCreateCommand.sh"
+        f"cd {workspaceFolder}{CONFIG_DIRNAME}/scripts && /bin/bash onCreateCommand.sh"
     )
-    updateContentCommand: str = f"cd {workspaceFolder}.conman/scripts && /bin/bash updateContentCommand.sh"
-    postCreateCommand: str = f"cd {workspaceFolder}.conman/scripts && /bin/bash postCreateCommand.sh"
+    updateContentCommand: str = f"cd {workspaceFolder}{CONFIG_DIRNAME}/scripts && /bin/bash updateContentCommand.sh"
+    postCreateCommand: str = f"cd {workspaceFolder}{CONFIG_DIRNAME}/scripts && /bin/bash postCreateCommand.sh"
     postStartCommand: str = (
-        f"cd {workspaceFolder}.conman/scripts && /bin/bash postStartCommand.sh"
+        f"cd {workspaceFolder}{CONFIG_DIRNAME}/scripts && /bin/bash postStartCommand.sh"
     )
 
     _optional_attributes_: List[str] = field(
         default_factory=lambda: [
-            # "overrideCommand",
-            # "name",
-            # "dockerComposeFile",
-            # "service",
-            # "shutdownAction",
+            "overrideCommand",
+            "name",
+            "dockerComposeFile",
+            "service",
+            "shutdownAction",
             "initializeCommand",
             "onCreateCommand",
             "updateContentCommand",
@@ -87,9 +87,9 @@ class DevContainer(Builder):
         self.dump_to_json(
             filename,
             rm_private=True,
-            rm_optional=True,
+            rm_optional=False,
             rm_empty=False,
-            rm_none=False,
+            rm_none=True,
         )
 
     def dump_envFile(self, username, filename: str = "../.env"):
