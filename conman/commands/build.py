@@ -84,7 +84,7 @@ class Image(Builder):
         self, filename: str = "Dockerfile", container_engine: str = "Docker"
     ) -> str:
         print("--- Build root Dockerfile ---")
-        path = os.path.dirname(filename) + "/"
+        path = CONFIG_DIR
         docker_file = DockerFile(
             img_basename=f"{self.from_image.name}:{self.from_image.tag}",
             conda_environment=self.conda_environment,
@@ -98,7 +98,7 @@ class Image(Builder):
             )
             docker_file.add_instruction(root_instruction)
 
-        docker_file.generate(filename=filename).dump_build_script(
+        docker_file.generate(filename=path+filename).dump_build_script(
             filename=path + "build_root_img.sh",
             basename=f"{self.name}:{self.tag}",
             container_engine=container_engine,
@@ -188,6 +188,7 @@ class Container(Builder):
     def __post_init__(self):
         if self.devcontainer is not None:
             self.devcontainer.service = self.compose.service_name
+            self.devcontainer.name = self.compose.container_name
             self.devcontainer.dockerComposeFile = self.compose.filename
 
 
@@ -388,7 +389,7 @@ class Config(Builder):
         # create Dockerfile.root file
         if self.images.root.generate:
             self.images.root.to_dockerfile(
-                filename=f"{self.wdir}Dockerfile.root",
+                filename=f"Dockerfile.root",
                 container_engine=self.container.engine,
             )
 
