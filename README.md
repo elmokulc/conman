@@ -36,7 +36,7 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 ---
 
 ## Usage
-
+### When starting a new project
 - Go to you project directory:
 
     ```bash
@@ -90,14 +90,12 @@ images:
 container:
     engine: docker # docker or podman
     compose:
-        container_name: ContainerNameDockerCompose
-        service_name: main_service_name
+        service_name: main
         volumes:
         - ..:/workspace
         - path_module1/module1:/python_modules/module1
         - path_module2/module2:/python_modules/module2
     devcontainer:
-        name: devcontainer_name
         customizations:
             vscode:
                 settings: {}
@@ -169,6 +167,31 @@ container:
 
     4 directories, 13 files 
     ``` 
+### When working on an existing project
+
+In case you want to work on an existing project, you can use the `conman update` command by running:
+
+```bash
+conman update
+```
+
+This command will regenerate user dependant files such as `Dockerfile.user`, `docker-compose.yml` or `devcontainer.json`:
+
+```console
+$ ➜ ~/my_project $ conman update
+Updating conman build...
+Creating devcontainer.json file...
+[...]
+Appending volumes for display configuration...
+-> Add volume: /tmp/.X11-unix:/tmp/.X11-unix:rw
+-> Add volume: /home/vscode/.Xauthority:/home/vscode/.Xauthority:rw
+-> Display forwading activated
+-> Add volume: ../:/workspace
+--- Build user Dockerfile ---
+Adding conda environment to Dockerfile...
+No extra instructions in user image
+Generated Dockerfile.user at:    /workspaces/conman/myproject/.devcontainer/Dockerfile.user
+```
 
 ## Help
 
