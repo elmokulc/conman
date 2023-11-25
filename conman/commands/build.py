@@ -188,7 +188,7 @@ class Container(Builder):
     def __post_init__(self):
         if self.devcontainer is not None:
             self.devcontainer.service = self.compose.service_name
-            self.devcontainer.name = self.compose.container_name
+            self.devcontainer.name = self.compose._container_name
             self.devcontainer.dockerComposeFile = self.compose.filename
 
 
@@ -299,12 +299,12 @@ class Config(Builder):
 
     def run_building(self) -> None:
         try:
+            print("Building...")
             self.wdir = os.getcwd() + "/"
             self.build_devcontainer()
             self.build_dockercompose_file()
             self.build_dockerfile_user()
             self.build_dockerfile_root()
-
             print("Project Building done successfully")
         except Exception as e:
             print("Project Building failed")
@@ -336,7 +336,7 @@ class Config(Builder):
         # Add main_container service
         self.container.compose._docker_compose_file.add_service(
             service_name=self.container.compose.service_name,
-            container_name=self.container.compose.container_name,
+            container_name=self.container.compose._container_name,
         )
         target_service = (
             self.container.compose._docker_compose_file.get_service(
@@ -396,12 +396,10 @@ class Config(Builder):
             self.images.root.conda_environment.generate_environment_file()
 
 
-def build():
-    print("Building...")
-
+def build() -> int:
     config = Config().load_conman_config_file(filename=CONFIG_FILE)
-
     config.run_building()
+    return 0
 
 
 if __name__ == "__main__":

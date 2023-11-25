@@ -88,11 +88,11 @@ class DockerComposeFile(Builder):
 @dataclass
 class DockerCompose(Builder):
     filename: str = "docker-compose.yml"
-    container_name: str = (
-        f'{get_user_id_data()["USER_NAME"]}-container-{get_random_hash_str()}'
-    )
     service_name: str = "main_service_name"
     volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
+    _container_name: str = (
+        f'{get_user_id_data()["USER_NAME"]}-container-{get_random_hash_str()}'
+    )
     _docker_compose_file: DockerComposeFile = DockerComposeFile()
 
 
