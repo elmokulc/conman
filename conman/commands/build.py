@@ -5,13 +5,14 @@ from pathlib import Path
 
 import os
 from conman import utils
-from conman.io import asi, Builder
+from conman.io import asi, Builder, create_directory, check_file_exist
 import conman.ressources as rsrc
 from conman.constants import *
 import yaml
 from dataclasses import dataclass, field
 from conman.ressources.devcontainer import DevContainer
 from conman.ressources.docker_compose import DockerComposeFile, DockerCompose
+from conman.ressources.docker_compose import get_user_id_data
 from conman.ressources.docker_file import DockerFile, Instructions
 import logging
 
@@ -21,10 +22,11 @@ import logging
 class CondaEnvironment(Builder):
     directory: Path = "/opt/conda"
     env_name: str = "myenv"
-    environment_file: Path = "./environment.yml"
+    env_filename: Path = f"{CONFIG_DIR}conda/environment.yml"
 
     def generate_environment_file(
         self,
+        filename: str = None,
         pip_packages=["scipy", "opencv-python", "opencv-contrib-python"],
         conda_packages=["python=3.8", "pip", "numpy"],
         channels=["conda-forge", "anaconda", "defaults"],
@@ -33,12 +35,16 @@ class CondaEnvironment(Builder):
         Manage conda environment.yml file
         if file exists do nothing else create an empty file
         Args:
-            self.environment_file (str): environment.yml file path
+            self.env_filename (str): environment.yml file path
         """
 
-        if not os.path.isfile(self.environment_file):
-            print(f"Creating conda env file at: \t{self.environment_file}")
-            with open(self.environment_file, "w") as file:
+        if filename is not None:
+            self.env_filename = filename
+
+        if not os.path.isfile(self.env_filename):
+            print(f"Creating conda env file at: \t{self.env_filename}")
+            create_directory(self.env_filename)
+            with open(self.env_filename, "w") as file:
                 file.write("name: " + self.env_name + "\n")
 
                 # channels
@@ -56,28 +62,35 @@ class CondaEnvironment(Builder):
                 for pip_package in pip_packages:
                     file.write("    - " + pip_package + "\n")
         else:
-            print(f"Conda env file exists at: \t{self.environment_file}")
+            print(f"Conda env file exists at: \t{self.env_filename}")
 
 
 @asi
 @dataclass
 class Image(Builder):
-    generate: bool = False
     name: str = "<root_image_name>"
     tag: str = "<root_image_tag>"
+    conda_environment: CondaEnvironment = CondaEnvironment()
+    extra_instructions: List[str] = field(default_factory=lambda: [])
+    __private_class_lib__: Dict = field(
+        default_factory=lambda: {"conda_environment": CondaEnvironment}
+    )
+    generate: bool = False
     from_image: Dict[str, str] = field(
         default_factory=lambda: {"name": "ubuntu", "tag": "20.04"}
     )
-    conda_environment: CondaEnvironment = CondaEnvironment()
-    extra_instructions: List[str] = field(default_factory=lambda: [])
 
-    def to_dockerfile(self, filename: str = "Dockerfile") -> str:
+    def to_dockerfile(
+        self, filename: str = "Dockerfile", container_engine: str = "Docker"
+    ) -> str:
         print("--- Build root Dockerfile ---")
-        docker_file = DockerFile()
-        docker_file.default_debian_root_instruction(
-            base_image=f"{self.from_image.name}:{self.from_image.tag}",
-            conda_obj=self.conda_environment,
+        path = CONFIG_DIR
+        docker_file = DockerFile(
+            img_basename=f"{self.from_image.name}:{self.from_image.tag}",
+            conda_environment=self.conda_environment,
+            wdir=path,
         )
+        docker_file.default_debian_root_instruction()
         if self.extra_instructions:
             print("Adding root extra instructions to Dockerfile...")
             root_instruction = Instructions.from_lines(
@@ -85,7 +98,11 @@ class Image(Builder):
             )
             docker_file.add_instruction(root_instruction)
 
-        docker_file.generate(filename=filename)
+        docker_file.generate(filename=path+filename).dump_build_script(
+            filename=path + "build_root_img.sh",
+            basename=f"{self.name}:{self.tag}",
+            container_engine=container_engine,
+        )
 
 
 @asi
@@ -98,12 +115,11 @@ class ImageUser(Builder):
         self, filename: str = "Dockerfile", graphical=False
     ) -> str:
         print("--- Build user Dockerfile ---")
-        docker_file = DockerFile()
-        docker_file.default_user_instruction(
-            base_name=f"{self.__private_root_img__.name}:{self.__private_root_img__.tag}",
-            graphical=graphical,
-            conda_obj=self.__private_root_img__.conda_environment,
+        docker_file = DockerFile(
+            img_basename=f"{self.__private_root_img__.name}:{self.__private_root_img__.tag}",
+            conda_environment=self.__private_root_img__.conda_environment,
         )
+        docker_file.default_user_instruction(graphical=graphical)
 
         if self.__private_root_img__.conda_environment is not None:
             print("Adding conda environment to Dockerfile...")
@@ -152,7 +168,9 @@ class Gpu(Builder):
 @asi
 @dataclass
 class Container(Builder):
-    docker_compose: DockerCompose = DockerCompose()
+    # _engine_name =
+    engine: str = "docker"
+    compose: DockerCompose = DockerCompose()
     devcontainer: Optional[DevContainer] = DevContainer()
     graphical: Graphical = Graphical()
     gpu: Gpu = Gpu()
@@ -163,13 +181,15 @@ class Container(Builder):
             "graphical": Graphical,
             "devcontainer": DevContainer,
             "conda_environment": CondaEnvironment,
-            "docker_compose": DockerCompose,
+            "compose": DockerCompose,
         }
     )
 
     def __post_init__(self):
-        self.devcontainer.service = self.docker_compose.service_name
-        self.devcontainer.dockerComposeFile = self.docker_compose.filename
+        if self.devcontainer is not None:
+            self.devcontainer.service = self.compose.service_name
+            self.devcontainer.name = self.compose._container_name
+            self.devcontainer.dockerComposeFile = self.compose.filename
 
 
 @asi
@@ -212,7 +232,7 @@ class Config(Builder):
             "graphical": Graphical,
             "devcontainer": DevContainer,
             "conda_environment": CondaEnvironment,
-            "docker_compose": DockerCompose,
+            "compose": DockerCompose,
         }
     )
     _dump_options: Dict = field(
@@ -223,6 +243,7 @@ class Config(Builder):
             "rm_none": False,
         }
     )
+    _workdir: str = os.getcwd() + "/"
 
     def __post_init__(self):
         self._check_images()
@@ -246,7 +267,6 @@ class Config(Builder):
                 attr = Config.deletion(obj=attr, dic=dic[key])
                 setattr(instance, key, attr)
 
-        # import ipdb ; ipdb.set_trace()
         return instance
 
     @staticmethod
@@ -279,12 +299,12 @@ class Config(Builder):
 
     def run_building(self) -> None:
         try:
+            print("Building...")
             self.wdir = os.getcwd() + "/"
             self.build_devcontainer()
             self.build_dockercompose_file()
             self.build_dockerfile_user()
             self.build_dockerfile_root()
-
             print("Project Building done successfully")
         except Exception as e:
             print("Project Building failed")
@@ -298,30 +318,29 @@ class Config(Builder):
                 os.mkdir(".devcontainer")
                 print("Directory .devcontainer created")
 
-            self.build_devcontainer_json()
-        else:
-            print("No devcontainer section in config file")
-
-    def build_devcontainer_json(self) -> None:
-        # create devcontainer.json file
-        if not os.path.isfile(".devcontainer/devcontainer.json"):
             print("Creating devcontainer.json file...")
+            # create devcontainer.json file
             self.container.devcontainer.dump_devcontainerjson_file(
                 filename=f"{self.wdir}devcontainer.json"
             )
-            # print("devcontainer.json file created")
+            self.container.devcontainer.dump_envFile(
+                username=get_user_id_data()["USER_NAME"],
+                filename=f"{os.path.abspath(os.path.join(self.wdir, os.pardir))}/.env",
+            )
+            self.container.devcontainer.dump_optionals_scripts()
+
         else:
-            print("devcontainer.json file already exists")
+            print("No devcontainer section in config file")
 
     def build_dockercompose_file(self) -> None:
         # Add main_container service
-        self.container.docker_compose._docker_compose_file.add_service(
-            service_name=self.container.docker_compose.service_name,
-            container_name=self.container.docker_compose.container_name,
+        self.container.compose._docker_compose_file.add_service(
+            service_name=self.container.compose.service_name,
+            container_name=self.container.compose._container_name,
         )
         target_service = (
-            self.container.docker_compose._docker_compose_file.get_service(
-                service_name=self.container.docker_compose.service_name
+            self.container.compose._docker_compose_file.get_service(
+                service_name=self.container.compose.service_name
             )
         )
 
@@ -330,11 +349,15 @@ class Config(Builder):
         if self.container.graphical is not None:
             target_service.activate_display()
         # Volume mounting
-        target_service.appending_volumes(self.container.docker_compose.volumes)
+        target_service.appending_volumes(self.container.compose.volumes)
 
         # Gpu enabling
         if self.container.gpu is not None:
-            target_service.deploy.activate_gpu()
+            if (
+                self.container.gpu.count > 0
+                and self.container.gpu.manufacturer == "nvidia"
+            ):
+                target_service.deploy.activate_gpu()
 
         # Conda enabling
         if self.images.root.conda_environment is not None:
@@ -343,15 +366,10 @@ class Config(Builder):
             )
 
         # create docker-compose.yml file
-        if not os.path.isfile(f"{self.container.docker_compose.filename}"):
-            self.container.docker_compose._docker_compose_file.dump_to_yml(
-                filename=f"{self.wdir}{self.container.docker_compose.filename}",
-                rm_private=True,
-            )
-        else:
-            print(
-                f"{self.wdir}{self.container.docker_compose.filename} file already exists"
-            )
+        self.container.compose._docker_compose_file.dump_to_yml(
+            filename=f"{self.wdir}{self.container.compose.filename}",
+            rm_private=True,
+        )
 
     def build_dockerfile_user(self) -> None:
         def _check_graphical():
@@ -362,31 +380,26 @@ class Config(Builder):
                 return False
 
         # create Dockerfile.user file
-        if not os.path.isfile("Dockerfile.user"):
-            self.images.user.to_dockerfile(
-                filename=f"{self.wdir}Dockerfile.user",
-                graphical=_check_graphical(),
-            )
-        else:
-            print(f"{self.wdir}Dockerfile.user file already exists")
+        self.images.user.to_dockerfile(
+            filename=f"{self.wdir}Dockerfile.user",
+            graphical=_check_graphical(),
+        )
 
     def build_dockerfile_root(self) -> None:
         # create Dockerfile.root file
         if self.images.root.generate:
-            if not os.path.isfile("Dockerfile.root"):
-                self.images.root.to_dockerfile(
-                    filename=f"{self.wdir}Dockerfile.root"
-                )
-            else:
-                print(f"{self.wdir}Dockerfile.root file already exists")
+            self.images.root.to_dockerfile(
+                filename=f"Dockerfile.root",
+                container_engine=self.container.engine,
+            )
+
+            self.images.root.conda_environment.generate_environment_file()
 
 
-def build():
-    print("Building...")
-
+def build() -> int:
     config = Config().load_conman_config_file(filename=CONFIG_FILE)
-
     config.run_building()
+    return 0
 
 
 if __name__ == "__main__":

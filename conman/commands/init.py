@@ -18,7 +18,7 @@ def init(force=False, optional=False) -> int:
     if not force:
         print("Initializing conman project")
         # Check if .conman-config.yml already exists in current directory
-        if os.path.isfile(".conman-config.yml"):
+        if os.path.isfile(".conman/conman-config.yml"):
             print(
                 "Warning : .conman-config.yml already exists in current directory"
             )

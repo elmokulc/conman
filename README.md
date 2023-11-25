@@ -10,11 +10,13 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 ## Requirements 
 
 - Unix (Linux, macOS) based operating system (WSL workaround for Windows)
-- [Docker 24.0+](https://docs.docker.com/get-docker/) and [Docker-compose 2.20+](https://docs.docker.com/compose/)
+- A container engine ans its composer tool: 
+  - [Docker 24.0+](https://docs.docker.com/get-docker/) and [Docker-compose 2.20+](https://docs.docker.com/compose/)
+  - [Podman 4.0+](https://podman.io/getting-started/installation) and [Podman-compose 1.0.6+](https://docs.podman.io/en/latest/markdown/podman-compose.1.html)
 - [Python 3.8+](https://www.python.org/downloads/)
 - Python modules :
     - [pip 21.0.1+](https://pip.pypa.io/en/stable/installation/) (Need setuptools integration)
-
+    - [pyyaml 5.4.1+](https://pypi.org/project/PyYAML/)
 ---
 
 ## Installation
@@ -22,21 +24,19 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 - Install conman using pip:
 
     ```bash
-    pip install git+https://github.com/elmokulc/conman.git@0.0.1
+    pip install conman-tool
     ```
 
-    **NB**: Replace `<branch_name>` by the name of the branch you want to install.
-
-    The current stable realease is `1.0`:
+    You can also install conman from source, tcd he current stable realease is `1.2.0`:
 
     ```bash
-    pip install git+https://github.com/elmokulc/conman.git@1.0
+    pip install git+https://github.com/elmokulc/conman.git@1.2.0
     ```
 
 ---
 
 ## Usage
-
+### When starting a new project
 - Go to you project directory:
 
     ```bash
@@ -49,17 +49,18 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
     conman init
     ```
 
-    This will create a file named `.conman-config.yml` in your project directory.
+    This will create a directory named `.conman` within the configuration file `conman-config.yml`.
 
     ```bash
     $ ➜ ~/my_project $ conman init
     $ ➜ ~/my_project $ tree -a
     .
-    └── .conman-config.yml
+    └── .conman
+        └── conman-config.yml
 
-    0 directories, 1 file
+    1 directory, 1 file
     ```
-- Edit the `.conman-config.yml` configuration file to fit your needs.
+- Edit the `conman-config.yml` configuration file to fit your needs.
 
 As example:
 
@@ -67,7 +68,7 @@ As example:
 # Images Settings
 images:
     root:
-        generate: false
+        generate: true
         name: BigFoot
         tag: latest
         from_image:
@@ -87,15 +88,14 @@ images:
 
 # Container Settings
 container:
-    docker_compose:
-        container_name: ContainerNameDockerCompose
-        service_name: main_service_name
+    engine: docker # docker or podman
+    compose:
+        service_name: main
         volumes:
         - ..:/workspace
         - path_module1/module1:/python_modules/module1
         - path_module2/module2:/python_modules/module2
     devcontainer:
-        name: devcontainer_name
         customizations:
             vscode:
                 settings: {}
@@ -138,25 +138,60 @@ container:
         Adding user extra instructions to Dockerfile...
         Generated Dockerfile.user at:    ~/my_project/.devcontainer/Dockerfile.user
         --- Build root Dockerfile ---
-        Creating conda env file at:     ./environment.yml
+        Creating conda env file at:     ~/my_project/.conman/environment.yml
         Adding root extra instructions to Dockerfile...
-        Generated Dockerfile.root at:    ~/my_project/.devcontainer/Dockerfile.root
+        Generated Dockerfile.root at:    ~/my_project/.conman/Dockerfile.root
         Project Building done successfully
     ```
     The project directory will now look like this:
     ```console
     $ ➜ ~/my_project $ tree -a
-        .
-        ├── .conman-config.yml
-        ├── .devcontainer
-        │   ├── devcontainer.json
-        │   ├── docker-compose.yml
-        │   ├── Dockerfile.root
-        │   └── Dockerfile.user
-        └── environment.yml
+    .
+    ├── .conman
+    │   ├── conda
+    │   │   └── environment.yml
+    │   ├── conman-config.yml
+    │   └── scripts
+    │       ├── initializeCommand.sh
+    │       ├── onCreateCommand.sh
+    │       ├── postCreateCommand.sh
+    │       ├── postStartCommand.sh
+    │       └── updateContentCommand.sh
+    ├── .devcontainer
+    │   ├── build_root_img.sh
+    │   ├── devcontainer.json
+    │   ├── docker-compose.yml
+    │   ├── Dockerfile.root
+    │   └── Dockerfile.user
+    └── .env
 
-        1 directory, 6 files  
+    4 directories, 13 files 
     ``` 
+### When working on an existing project
+
+In case you want to work on an existing project, you can use the `conman update` command by running:
+
+```bash
+conman update
+```
+
+This command will regenerate user dependant files such as `Dockerfile.user`, `docker-compose.yml` or `devcontainer.json`:
+
+```console
+$ ➜ ~/my_project $ conman update
+Updating conman build...
+Creating devcontainer.json file...
+[...]
+Appending volumes for display configuration...
+-> Add volume: /tmp/.X11-unix:/tmp/.X11-unix:rw
+-> Add volume: /home/vscode/.Xauthority:/home/vscode/.Xauthority:rw
+-> Display forwading activated
+-> Add volume: ../:/workspace
+--- Build user Dockerfile ---
+Adding conda environment to Dockerfile...
+No extra instructions in user image
+Generated Dockerfile.user at:    /workspaces/conman/myproject/.devcontainer/Dockerfile.user
+```
 
 ## Help
 

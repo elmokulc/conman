@@ -14,6 +14,7 @@ from conman.commands.init import init
 from conman.commands.clean import clean
 from conman.commands.status import status
 from conman.commands.build import build
+from conman.commands.update import update
 
 
 CMDS = {
@@ -21,6 +22,7 @@ CMDS = {
     "clean": {"func": clean, "kargs": []},
     "status": {"func": status, "kargs": []},
     "build": {"func": build, "kargs": []},
+    "update": {"func": update, "kargs": []},
 }
 
 
@@ -85,6 +87,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     ## Install command
     build_impl_parser = subparsers.add_parser("build", help="Build project")
+    
+    ## Update command
+    update_impl_parser = subparsers.add_parser("update", help="Update project")
 
     ## Clean command
     clean_impl_parser = subparsers.add_parser("clean", help="Clean project")

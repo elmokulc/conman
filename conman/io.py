@@ -7,6 +7,45 @@ import copy
 import types
 
 
+def create_directory(path: str) -> None:
+    """
+    Creates a directory if it does not already exist.
+
+    Args:
+        path (str): Privoded path, can be a path to a file or a directory.
+
+    Returns:
+        None
+    """
+    # Conversion to Path object
+    path = Path(path)
+
+    # Create directory if it does not exist
+    if path.parent != Path():
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True)
+
+
+def check_file_exist(path: str) -> bool:
+    """
+    Check if a file exists.
+
+    Args:
+        path (str): Privoded path, can be a path to a file or a directory.
+
+    Returns:
+        bool: True if the file exists, False otherwise.
+    """
+    # Conversion to Path object
+    path = Path(path)
+
+    # Check if file exists
+    if path.exists():
+        return True
+    else:
+        return False
+
+
 def asi(subclass):
     """
     A decorator function that adds support for automatic super() initialization to a subclass.
@@ -234,6 +273,8 @@ class Builder:
                 f"\n{attr}:\n",
                 f"\n\n# {attr.capitalize()} Settings\n{attr}:\n",
             )
+
+        create_directory(filename)
 
         # Actually write the file
         with open(filename, "w") as f:

@@ -62,3 +62,14 @@ def convert_to_object(data):
         return [convert_to_object(element) for element in data]
     else:
         return data
+
+
+def get_random_hash_str(size=14):
+    import hashlib
+    import os
+    from time import time
+
+    hash_value = hashlib.sha256(
+        str.encode(str(time()) + os.getcwd())
+    ).hexdigest()
+    return hash_value[:size]

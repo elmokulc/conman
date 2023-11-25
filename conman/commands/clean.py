@@ -9,21 +9,24 @@ def clean() -> int:
 
     config = Config().load_conman_config_file(filename=CONFIG_FILE)
 
-    if (
-        config.images.root.generate
-        and config.images.root.conda_environment is not None
-    ):
-        print("Deleteting conda environment file")
-        conda_env_file = config.images.root.conda_environment.environment_file
-        os.remove(f"{conda_env_file}")
-
     if config.container.devcontainer is not None:
         print("Deleteting .devcontainer folder")
         shutil.rmtree("./.devcontainer/")
+        print("Deleteting .env file")
+        os.remove("./.env")
     else:
         if config.images.root.generate:
             print("Deleteting Dockerfile.root")
             os.remove("./Dockerfile.root")
+            os.remove("./build_root_img.sh")
+            if config.images.root.conda_environment is not None:
+                print("Deleteting Dockerfile.conda")
+                print("Deleteting conda environment file")
+                conda_env_file = (
+                    config.images.root.conda_environment.env_filename
+                )
+                os.remove(f"{conda_env_file}")
+
         print("Deleteting Dockerfile.user")
         os.remove("./Dockerfile.user")
         print("Deleteting docker-compose.yml")

@@ -2,6 +2,7 @@ import yaml
 import platform
 import os
 from conman.io import asi, Builder
+from conman.utils import get_random_hash_str
 from dataclasses import dataclass, field
 from typing import List, Dict, Any
 
@@ -87,9 +88,11 @@ class DockerComposeFile(Builder):
 @dataclass
 class DockerCompose(Builder):
     filename: str = "docker-compose.yml"
-    container_name: str = "ContainerNameDockerCompose"
     service_name: str = "main_service_name"
     volumes: List[str] = field(default_factory=lambda: ["../:/workspace"])
+    _container_name: str = (
+        f'{get_user_id_data()["USER_NAME"]}-container-{get_random_hash_str()}'
+    )
     _docker_compose_file: DockerComposeFile = DockerComposeFile()
 
 
@@ -293,7 +296,7 @@ class Service(Builder):
         Returns:
             None
         """
-        self.build.add_arg("CONDA_ENV", f"{conda_env_name}")
+        self.build.add_arg("CONDA_ENV_NAME", f"{conda_env_name}")
 
 
 if __name__ == "__main__":
