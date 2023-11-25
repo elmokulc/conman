@@ -48,7 +48,7 @@ class DevContainer(Builder):
     name: str = "devcontainer_name"
     workspaceFolder: str = "/workspace/"
     dockerComposeFile: str = str(Path("./docker-compose.yml"))
-    service: str = "main_service_name"
+    service: str = "main"
     shutdownAction: str = "stopCompose"
     customizations: Customizations = Customizations()
     initializeCommand: str = f"cd {CONFIG_DIR}scripts && /bin/bash initializeCommand.sh"
