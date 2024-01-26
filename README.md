@@ -13,7 +13,7 @@ Conman is a tool to manage containers. It is designed to be used with docker, do
 - A container engine ans its composer tool: 
   - [Docker 24.0+](https://docs.docker.com/get-docker/) and [Docker-compose 2.20+](https://docs.docker.com/compose/)
   - [Podman 4.0+](https://podman.io/getting-started/installation) and [Podman-compose 1.0.6+](https://docs.podman.io/en/latest/markdown/podman-compose.1.html)
-- [Python 3.8+](https://www.python.org/downloads/)
+- [Python 3.8+ and <3.11](https://www.python.org/downloads/)
 - Python modules :
     - [pip 21.0.1+](https://pip.pypa.io/en/stable/installation/) (Need setuptools integration)
     - [pyyaml 5.4.1+](https://pypi.org/project/PyYAML/)
